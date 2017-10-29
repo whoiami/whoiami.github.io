@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!-- meta information -->
+<meta charset="utf-8">
+<meta name="description" 
+      content="Introduction:Ceph is a highly reliable, highly scalable, distributed open-source storage system. The pic  below is an..." >
+<meta name="author" content="whoiami">
+
+<!-- Enable responsiveness on mobile devices-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+
+<!-- title -->
+<title>A glimpse of Ceph PG State Machine &middot; </title>
+
+<!-- icons -->
+<link rel="shortcut icon" href="url(/public/images/favicon.ico)" />
+
+<!-- stylesheets -->
+<link rel="stylesheet" href="/public/css/responsive.gs.12col.css">
+<link rel="stylesheet" href="/public/css/animate.min.css">
+<link rel="stylesheet" href="/public/css/main.css">
+
+<!-- Google fonts -->
+<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700,400italic&subset=latin-ext">
+
+
+
+<!-- feed links -->
+<link rel="alternate" href="http://localhost:4000/feed.xml" type="application/rss+xml" title="">
+
+  </head>
+  <body>
+    <div class="container azul">
+      <header class="top row gutters">
+        <div class="col span_2 center">
+          <!-- TODO: add baseurl to the logo link -->
+          <a href="http://localhost:4000" id="logo" title="Be to a better man"
+             style="background-image: url(/public/images/logo.jpg);"></a>
+        </div>
+        <nav class="col span_10 top-navbar">
+  
+  <a href="/" title="Home"
+   >Home</a>
+  
+  <a href="https://github.com/whoiami" title="Github"
+    target="_blank" >Github</a>
+  
+  <a href="/about" title="About"
+   >About</a>
+  
+</nav>
+
+      </header>
+
+      <article class="single row gutters">
+  <time class="published" datetime="2017-10-28">28 October 2017</time>
+  <h2>A glimpse of Ceph PG State Machine</h2>
+
+  <hr />
+
+<h3 id="introduction">Introduction:</h3>
+
+<p>Ceph is a highly reliable, highly scalable, distributed open-source storage system. The pic  below is an architecture of ceph.</p>
+
+<p>RADOS (Reliable, Autonomous, Distributed Object Storage) is the base of the system. RADOS allows nodes in the cluster to act semi-autonomously to self-manage replication, failure detection, and failure recovery. More details on <a href="https://ceph.com/wp-content/uploads/2016/08/weil-rados-pdsw07.pdf">RADOS: A Scalable, Reliable Storage Service for Petabyte-scaleStorage Clusters</a>.</p>
+
+<p>Above RADOS layer, LIBRADOS, as it shows in Pic, is a library which supports direct access to RADOS in multiple languages. RADOSGW, RBD and CEPHFS are higher level layers to covert RADOS object storage into bucket-based, block-based and filesytem service.</p>
+
+<p><img src="http://docs.ceph.com/docs/master/_images/stack.png" alt="Ceph Architecture" /></p>
+
+<hr />
+
+<h4 id="why-pg-state">Why PG state?</h4>
+
+<p>PG is the minimum unit to perform reliable storage. For the most to debug work, PG state is the first parameter we may focus on. However, what is the PG state mean in the source code level and under what condition it will bring PG to some specific state(like CREATING, PEERING). This article will explain them all. The description of PG state can be found in <a href="http://docs.ceph.com/docs/master/rados/operations/monitoring-osd-pg/#monitoring-osds">Ceph Website</a>.</p>
+
+<hr />
+
+<h4 id="what-a-pg-state-machine-looks-like">What a PG state machine looks like?</h4>
+
+<p>Generally, it is just like the pic below. In ceph the state machine is called “recovery state machine”.</p>
+
+<h6><img src="/public/images/2017-10-28/PG_STATE.png" alt="PG_state_machine" /></h6>
+
+<p>Every PG maintains a state machine. It defines like:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">RecoveryMachine</span> <span class="o">:</span> <span class="n">state_machine</span><span class="o">&lt;</span> <span class="n">RecoveryMachine</span><span class="p">,</span> <span class="n">Initial</span> <span class="o">&gt;</span>
+</code></pre></div></div>
+
+<p>Every state machine contains two important elements, states and events. States describe the current PG status. Events lead the state changing. Once one state received a specific event, it will handle this event and it may change to another state.</p>
+
+<ul>
+  <li>state</li>
+</ul>
+
+<p>The code fragment below defines state <code class="highlighter-rouge">Initial</code>.</p>
+
+<p><code class="highlighter-rouge">Initial</code> handles two events, Initialize and Load.</p>
+
+<p>“transition” means it will transfer to Reset state once Initialize event happened.</p>
+
+<p>“custom_reaction” is some kind of customized reaction. This reaction will be done after Load event happened.</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Initial</span> <span class="o">:</span> <span class="n">state</span><span class="o">&lt;</span> <span class="n">Initial</span><span class="p">,</span> <span class="n">RecoveryMachine</span> <span class="o">&gt;</span><span class="p">,</span> <span class="n">NamedState</span> <span class="p">{</span>
+  <span class="k">explicit</span> <span class="n">Initial</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">);</span>
+  <span class="kt">void</span> <span class="n">exit</span><span class="p">();</span>
+
+  <span class="k">typedef</span> <span class="n">boost</span><span class="o">::</span><span class="n">mpl</span><span class="o">::</span><span class="n">list</span> <span class="o">&lt;</span>
+    <span class="n">boost</span><span class="o">::</span><span class="n">statechart</span><span class="o">::</span><span class="n">transition</span><span class="o">&lt;</span> <span class="n">Initialize</span><span class="p">,</span> <span class="n">Reset</span> <span class="o">&gt;</span><span class="p">,</span>
+    <span class="n">boost</span><span class="o">::</span><span class="n">statechart</span><span class="o">::</span><span class="n">custom_reaction</span><span class="o">&lt;</span> <span class="n">Load</span> <span class="o">&gt;</span><span class="p">,</span>
+  <span class="o">&gt;</span> <span class="n">reactions</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>+sub-state</p>
+
+<p>Another concept is sub-state. 
+The code fragment defines sub-state <code class="highlighter-rouge">Primary</code>. it is part of <code class="highlighter-rouge">Started</code> state and it starts from its substate <code class="highlighter-rouge">peering</code>.</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Started</span> <span class="o">:</span> <span class="n">state</span><span class="o">&lt;</span> <span class="n">Started</span><span class="p">,</span> <span class="n">RecoveryMachine</span><span class="p">,</span> <span class="n">Start</span> <span class="o">&gt;</span><span class="p">,</span> <span class="n">NamedState</span><span class="p">{};</span>
+</code></pre></div></div>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Primary</span> <span class="o">:</span> <span class="n">state</span><span class="o">&lt;</span> <span class="n">Primary</span><span class="p">,</span> <span class="n">Started</span><span class="p">,</span> <span class="n">Peering</span> <span class="o">&gt;</span><span class="p">,</span> <span class="n">NamedState</span> <span class="p">{};</span>
+</code></pre></div></div>
+
+<ul>
+  <li>event</li>
+</ul>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">Initialize</span> <span class="o">:</span> <span class="n">boost</span><span class="o">::</span><span class="n">statechart</span><span class="o">::</span><span class="n">event</span><span class="o">&lt;</span> <span class="n">Initialize</span> <span class="o">&gt;</span> <span class="p">{</span>
+  <span class="n">Initialize</span><span class="p">()</span> <span class="o">:</span> <span class="n">boost</span><span class="o">::</span><span class="n">statechart</span><span class="o">::</span><span class="n">event</span><span class="o">&lt;</span> <span class="n">Initialize</span> <span class="o">&gt;</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<hr />
+
+<h4 id="create-pgpool">Create PG(Pool)</h4>
+
+<p>I will take the PG initialization as an example to  go though Recovery Machine. That will give us a whole picture of what is the meaning of each state.</p>
+
+<ol>
+  <li>
+    <p>First time Create PG</p>
+
+    <p>client request—-&gt;monitor—-&gt;OSD</p>
+
+    <p>The process starts from a client request to monitor. Monitor will send a pg create message to OSD. The entry to handle this message is <code class="highlighter-rouge">OSD::handle_pg_create</code></p>
+
+    <p>For each PG, its initailized state is <code class="highlighter-rouge">Initial</code> and it will handle two event “Initialize” and “ActMap”. That will lead the PG to be “started” state.  If PG is primary, then state transform to Peering to Active and even to clean. That is we called active+clean.</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">OSD</span><span class="o">::</span><span class="n">handle_pg_create</span> 
+<span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="n">number</span> <span class="n">of</span> <span class="n">pg</span> <span class="n">monitor</span> <span class="n">request</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">create</span> <span class="n">PG</span><span class="c1">//The state is initial
+</span>    <span class="c1">//received Initialize event, transform to reset
+</span>    <span class="n">PG</span><span class="o">::</span><span class="n">recovery_state</span><span class="p">.</span><span class="n">handle_event</span><span class="p">(</span><span class="n">Initialize</span><span class="p">);</span>
+    <span class="c1">//reveived ActMap event, transform to Started
+</span>    <span class="n">PG</span><span class="o">::</span><span class="n">recovery_state</span><span class="p">.</span><span class="n">handle_event</span><span class="p">(</span><span class="n">ActMap</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+
+    <p><img src="/public/images/2017-10-28/PG_INIT_PROCESS.png" alt="PG initialization" /></p>
+
+    <p>Initial—(Initialize)—&gt;Reset—(ActMap)—&gt;Started—(isPrimary)—&gt;Primary—&gt;Peering
+—&gt;Active</p>
+  </li>
+  <li>
+    <p>osd restart</p>
+
+    <p>Another way to initialize a PG state is restart. Its entry is <code class="highlighter-rouge">OSD::init()</code>. It will:</p>
+
+    <ol>
+      <li>Load PGs</li>
+      <li>Make PG state handle Load event</li>
+      <li>PG will transform from <code class="highlighter-rouge">Initial</code> to <code class="highlighter-rouge">Reset</code> to  Started to Primary to Peering to Active.</li>
+    </ol>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">OSD</span><span class="o">::</span><span class="n">init</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">load_pgs</span>
+  <span class="n">recovery_state</span><span class="p">.</span><span class="n">handle_event</span><span class="p">(</span><span class="n">Load</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Initial</span><span class="o">::</span><span class="n">react</span><span class="p">(</span><span class="k">const</span> <span class="n">Load</span><span class="o">&amp;</span> <span class="n">l</span><span class="p">){</span>
+  <span class="err">……</span>
+  <span class="k">return</span> <span class="n">transit</span><span class="o">&lt;</span> <span class="n">Reset</span> <span class="o">&gt;</span><span class="p">();</span> 
+<span class="p">}</span>
+</code></pre></div>    </div>
+
+    <p>Initial—(Load)—&gt;Reset—(ActMap)—&gt;Started—(isPrimary)—&gt;Primary——&gt;Peering
+—&gt;Active</p>
+  </li>
+</ol>
+
+<hr />
+
+<h4 id="user-visiable-state-and-recovery-state">User visiable state and recovery state</h4>
+
+<p>All the states mentioned above are all revocery states. They helps PG to vecovery from different situation. Another state is User Visiable state. It could be considered to be a simplified human readable recovery state machine. States in commands like “ceph pg dump_stuck inactive|unclean|stale” are all User Visiable states.
+Start from  “ceph pg xxxx query” command”, I will focus on the relation between “User Visiable State” and “Recovery State”. As the output below shows, the first line is “User Visiable State”. User Visiable State includes states like active, clean, degraded, peering and so on. Corresponding macro is listed below.  More details can be found in <a href="https://github.com/whoiami/ceph/blob/master/src/osd/osd_types.cc">ceph/osd_types.cc</a>.</p>
+
+<h5 id="ceph-pg-poolnumpg-id-query">ceph pg {poolnum}.{pg-id} query</h5>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "state": "active+clean",
+  "up": [
+    1,
+    0
+  ],
+  "acting": [
+    1,
+    0
+  ],
+  .....
+  .....
+  "recovery_state": [
+    {
+      "name": "Started\/Primary\/Active",
+      "enter_time": "2013-01-23 09:35:37.594691",
+      "might_have_unfound": [
+
+      ],
+    },
+  ]
+}
+</code></pre></div></div>
+
+<hr />
+
+<h4 id="pg-status-from-osd_typesh">PG status (from <a href="https://github.com/whoiami/ceph/blob/master/src/osd/osd_types.h">osd_types.h</a>)</h4>
+
+<p><code class="highlighter-rouge">#define PG_STATE_CREATING     (1&lt;&lt;0)  // creating</code></p>
+
+<p><code class="highlighter-rouge">#define PG_STATE_PEERING      (1&lt;&lt;12) // pg is (re)peering</code></p>
+
+<p><code class="highlighter-rouge">#define PG_STATE_ACTIVE       (1&lt;&lt;1)  // i am active.  (primary: replicas too)</code></p>
+
+<p><code class="highlighter-rouge">#define PG_STATE_CLEAN        (1&lt;&lt;2)  // peers are complete, clean of stray replicas.</code></p>
+
+<p><code class="highlighter-rouge">#define PG_STATE_DEGRADED     (1&lt;&lt;10) // pg contains objects with reduced redundancy</code></p>
+
+<p><code class="highlighter-rouge">#define PG_STATE_RECOVERING   (1&lt;&lt;14) // pg is recovering/migrating objects</code></p>
+
+<p><code class="highlighter-rouge">#define PG_STATE_BACKFILLING  (1&lt;&lt;20) // [active] backfilling pg content</code></p>
+
+<p><code class="highlighter-rouge">#define PG_STATE_REMAPPED     (1&lt;&lt;18) // pg is explicitly remapped to different OSDs than CRUSH</code></p>
+
+<p>However, under what condition it will change from one user visiable state to another? And what is the real recovery state in source code?</p>
+
+<p>I will brifely go though these user visiable states.</p>
+
+<h5 id="1pg_state_creating">1.PG_STATE_CREATING</h5>
+
+<p>This bit will be set when you creating number of PGs in a Pool.</p>
+
+<p>It happens in “Primary” recovery state.</p>
+
+<p>The condition “pg-&gt;info.history.last_epoch_started == 0” means it is the first time creating this PG.</p>
+
+<ul>
+  <li>set(PG_STATE_CREATING)</li>
+</ul>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Primary</span><span class="o">::</span><span class="n">Primary</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// set CREATING bit until we have peered for the first time.
+</span>  <span class="c1">// When you create a pool, it will create the number of placement groups 
+</span>  <span class="c1">// you specified.
+</span>  <span class="k">if</span> <span class="p">(</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">info</span><span class="p">.</span><span class="n">history</span><span class="p">.</span><span class="n">last_epoch_started</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_CREATING</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>When you are out of Primary state, PG will clear PG_STATE_CREATING bit.</p>
+
+<ul>
+  <li>state_clear(PG_STATE_CREATING)</li>
+</ul>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Primary</span><span class="o">::</span><span class="n">exit</span><span class="p">(){</span>
+  <span class="n">g</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_CREATING</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h5 id="2-pg_state_peering">2. PG_STATE_PEERING</h5>
+
+<p>Peering process is to bring all its peers into a aggrement about the state of objects in the PG. More specific, it will generate an authoratative log and calculate objects to revocery or backfill.</p>
+
+<p>According to <a href="https://ceph.com/wp-content/uploads/2016/08/weil-rados-pdsw07.pdf／ “Title”">RADOS: A Scalable, Reliable Storage Service for Petabyte-scaleStorage Clusters</a>, “Any locally stored PGs whose active list of OSDs changes are marked must re-peer.” The possible conditions like</p>
+
+<ol>
+  <li>osds down or osds join</li>
+  <li>Initialize PG</li>
+  <li>modified your CRUSH map, PG is migrating</li>
+</ol>
+
+<ul>
+  <li>
+    <p>state_set(PG_STATE_PEERING)</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Peering</span><span class="o">::</span><span class="n">Peering</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">assert</span><span class="p">(</span><span class="o">!</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">is_peered</span><span class="p">());</span>
+  <span class="n">assert</span><span class="p">(</span><span class="o">!</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">is_peering</span><span class="p">());</span>
+  <span class="n">assert</span><span class="p">(</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">is_primary</span><span class="p">());</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_PEERING</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>state_clear(PG_STATE_PEERING)</p>
+
+    <p>1.Peering exit</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Peering</span><span class="o">::</span><span class="n">exit</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_PEERING</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+
+    <p>2.GetLog incomplete</p>
+
+    <p>It is impossible to generate authoratative log. For example, all peers are down. It will geos into incomplete state and clear bit PG_STATE_PEERING.</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">GetLog</span><span class="o">::</span><span class="n">GetLog</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">){</span>
+  <span class="c1">//calculate the desired acting
+</span>  <span class="c1">//calculated acting set size is less than min size(min_size) 
+</span>  <span class="c1">//to recovery
+</span>  <span class="c1">//"choose_acting failed, below min size"
+</span>  <span class="c1">//"choose_acting failed, not recoverable"
+</span>  <span class="n">post_event</span><span class="p">(</span><span class="n">IsIncomplete</span><span class="p">());</span> 
+<span class="p">}</span>
+</code></pre></div>    </div>
+
+    <p>​</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//Started/Primary/Peering/Incomplete
+</span><span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Incomplete</span><span class="o">::</span><span class="n">Incomplete</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_PEERING</span><span class="p">);</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_INCOMPLETE</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h5 id="3-pg_state_active">3. PG_STATE_ACTIVE</h5>
+
+<p>Once Ceph completes peering process, PG becomes ”active”. That basically means this PG is able to serve write and read operations.</p>
+
+<ul>
+  <li>
+    <p>state_set(PG_STATE_ACTIVE)</p>
+
+    <p>To set state PG_STATE_ACTIVE,  it follow the logic below:</p>
+
+    <ol>
+      <li>In <code class="highlighter-rouge">Active</code> recovery state, PG registers to a thread. Once receiving any replica reply info, it calls “_activate_committed”.</li>
+      <li>If primary PG got all replicas, it posts a AllReplicasActivated() event.</li>
+      <li>Followed by AllReplicasActivated event, if it matches condition (pg-&gt;acting.size() &gt;= pg-&gt;pool.info.min_size), it  set PG_STATE_ACTIVE bit.</li>
+    </ol>
+
+    <blockquote>
+      <p>Here is the explaination of  “pg-&gt;acting.size() &gt;= pg-&gt;pool.info.min_size.” For example, we define a strategy that one primary pg need 3 replicas. And the minimum number of PG to be UP is 2(min_size). Normally, the acting size is 3 &gt;= min_size 2. However, if one OSD down, the acting size is 2 &gt;= 2. It will also bring PG to be active. It serves write and read operation as normal. Of course, it is in active+degraded status. I will mention <code class="highlighter-rouge">degraded</code> later.</p>
+    </blockquote>
+  </li>
+</ul>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Active</span><span class="o">::</span><span class="n">Active</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">){</span>
+    <span class="c1">//regist when we commit call PG-&gt;_activate_committed
+</span> <span class="p">}</span>
+
+ <span class="kt">void</span> <span class="n">PG</span><span class="o">::</span><span class="n">_activate_committed</span><span class="p">(</span><span class="n">epoch_t</span> <span class="n">epoch</span><span class="p">,</span> <span class="n">epoch_t</span> <span class="n">activation_epoch</span><span class="p">)</span>
+ <span class="p">{</span>
+   <span class="k">if</span><span class="p">(</span><span class="n">is_primary</span><span class="p">())</span> <span class="p">{</span>
+     <span class="k">if</span> <span class="p">(</span><span class="n">peer_activated</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="n">actingbackfill</span><span class="p">.</span><span class="n">size</span><span class="p">()){</span>
+       <span class="n">all_actived_and_committed</span><span class="p">();</span>
+     <span class="p">}</span>
+     <span class="k">else</span> <span class="p">{</span>
+       <span class="k">if</span> <span class="p">(</span><span class="n">acting</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">pool</span><span class="p">.</span><span class="n">info</span><span class="p">.</span><span class="n">min_size</span><span class="p">){</span>
+         <span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_ACTIVE</span><span class="p">);</span>
+       <span class="p">}</span>
+     <span class="p">}</span>
+   <span class="p">}</span>
+ <span class="p">}</span>
+
+ <span class="cm">/*
+  * update info.history.last_epoch_started ONLY after we and all
+  * replicas have activated AND committed the activate transaction
+  * (i.e. the peering results are stable on disk).
+  */</span>
+ <span class="kt">void</span> <span class="n">PG</span><span class="o">::</span><span class="n">all_activated_and_committed</span><span class="p">(){</span>
+   <span class="n">dout</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="s">"all_activated_and_committed"</span> <span class="o">&lt;&lt;</span> <span class="n">dendl</span><span class="p">;</span>
+   <span class="c1">//call Active::react(const AllReplicasActivated &amp;evt) 
+</span>   <span class="n">queue_peering_event</span><span class="p">(</span><span class="n">CephPeeringEvtRef</span><span class="p">(</span><span class="n">AllReplicasActivated</span><span class="p">()));</span>
+ <span class="p">}</span>
+
+ <span class="n">Active</span><span class="o">::</span><span class="n">react</span><span class="p">(</span><span class="k">const</span> <span class="n">AllReplicasActivated</span> <span class="o">&amp;</span><span class="n">evt</span><span class="p">)</span> <span class="p">{</span>
+   <span class="c1">//min_size;      ///&lt; number of osds in each pg
+</span>   <span class="c1">//active status means able to serve this pg, it doesnt mean all 
+</span>   <span class="c1">//replica ack back. acting size bigger then the setted min size, 
+</span>   <span class="c1">//it is able to set PG_STATE_ACTIVE. Serve this pg means it is 
+</span>   <span class="c1">//able to recover pg under this acting size.
+</span>   <span class="k">if</span> <span class="p">(</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">acting</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">pg</span><span class="o">-&gt;</span><span class="n">pool</span><span class="p">.</span><span class="n">info</span><span class="p">.</span><span class="n">min_size</span><span class="p">)</span> <span class="p">{</span>
+     <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_ACTIVE</span><span class="p">);</span>
+   <span class="p">}</span>
+   <span class="k">else</span> <span class="p">{</span>
+     <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_PEERED</span><span class="p">);</span> 
+   <span class="p">}</span>
+ <span class="p">}</span>
+</code></pre></div></div>
+
+<ul>
+  <li>
+    <p>state_clear(PG_STATE_ACTIVE)</p>
+
+    <p>Clear PG_STATE_ACTIVE, when repeer is needed.</p>
+  </li>
+</ul>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="cm">/* Called before initializing peering during advance_map */</span>
+<span class="kt">void</span> <span class="n">PG</span><span class="o">::</span><span class="n">start_peering_interval</span><span class="p">()</span> 
+<span class="p">{</span>
+  <span class="c1">// deactivate.
+</span>  <span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_ACTIVE</span><span class="p">);</span>
+  <span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_PEERED</span><span class="p">);</span>
+  <span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_DOWN</span><span class="p">);</span>
+  <span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_RECOVERING</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h5 id="4-pg_state_clean">4. PG_STATE_CLEAN</h5>
+
+<p>When ceph replicaed all objects correct number of times, PG set PG_STATE_CLEAN bit.</p>
+
+<ul>
+  <li>
+    <p>state_set(PG_STATE_CLEAN)</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//Started/Primary/Active/Recovered
+</span><span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Recovered</span><span class="o">::</span><span class="n">Recovered</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">//finish recovery
+</span>  <span class="n">assert</span><span class="p">(</span><span class="o">!</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">needs_recovery</span><span class="p">());</span>
+  <span class="c1">//finish backfill
+</span>  <span class="n">assert</span><span class="p">(</span><span class="o">!</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">actingbackfill</span><span class="p">.</span><span class="n">empty</span><span class="p">());</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">context</span><span class="o">&lt;</span> <span class="n">Active</span> <span class="o">&gt;</span><span class="p">().</span><span class="n">all_replicas_activated</span><span class="p">)</span>
+    <span class="n">post_event</span><span class="p">(</span><span class="n">GoClean</span><span class="p">());</span>
+<span class="p">}</span>
+
+<span class="c1">//Started/Primary/Active/Clean
+</span><span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Clean</span><span class="o">::</span><span class="n">Clean</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">){</span>
+  <span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_CLEAN</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>state_clear(PG_STATE_CLEAN)</p>
+
+    <p>1.When PG needs to do repeer, clear bit.</p>
+
+    <pre><code class="language-C++">/* Called before initializing peering during advance_map */
+void PG::start_peering_interval{
+  //Any locally stored PGs whose active list of OSDs changes are
+  //marked must re-peer.
+  state_clear(PG_STATE_CLEAN);
+}
+</code></pre>
+
+    <p>2.Exit clean state</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Clean</span><span class="o">::</span><span class="n">exit</span><span class="p">(){</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_CLEAN</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+
+    <p>3.When scrub is working, clear bit.</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//if the scrub process is working, then set_clear PG_STATE_CLEAN
+</span><span class="kt">bool</span> <span class="n">PG</span><span class="o">::</span><span class="n">scrub_process_inconsistent</span><span class="p">(){</span>
+  <span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_CLEAN</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h5 id="5-pg_state_degraded">5. PG_STATE_DEGRADED</h5>
+
+<p>There are two cases that could lead PG to be PG_STATE_DEGRADED</p>
+
+<ol>
+  <li>If a peer OSD is down, but primary PG it is still active. PG_STATE_DEGRADED will be set.</li>
+  <li>While you cannot read or write to unfound objects, you can still access all of the other objects in the PG.  PG_STATE_DEGRADED will be set.</li>
+</ol>
+
+<ul>
+  <li>
+    <p>state_set(PG_STATE_DEGRADED)</p>
+  </li>
+  <li>
+    <p>state_clear(PG_STATE_DEGRADED)</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Active</span><span class="o">::</span><span class="n">react</span><span class="p">(</span><span class="k">const</span> <span class="n">AdvMap</span><span class="o">&amp;</span> <span class="n">advmap</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">if</span><span class="p">(</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">get_osdmap</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">get_pg_size</span><span class="p">(</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">info</span><span class="p">.</span><span class="n">pgid</span><span class="p">.</span><span class="n">pgid</span><span class="p">)</span> 
+      <span class="o">&lt;=</span> <span class="n">pg</span><span class="o">-&gt;</span><span class="n">actingset</span><span class="p">.</span><span class="n">size</span><span class="p">())</span> <span class="p">{</span>         
+    <span class="k">if</span> <span class="p">(</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">needs_recovery</span><span class="p">())</span> <span class="p">{</span>
+      <span class="c1">// object in this PG cannot be found(need recovery)
+</span>      <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_DEGRADED</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+      <span class="c1">// all objects in PG recovered &amp;&amp; actingset &gt; local pg size
+</span>      <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_DEGRADED</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="c1">//PG-&gt;actingset.size() &lt; pg-&gt;get_osdmap()-&gt;get_pg_size(pgid)
+</span>    <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_DEGRADED</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>state_clear(PG_STATE_DEGRADED)</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Active</span><span class="o">::</span><span class="n">exit</span><span class="p">()</span> 
+<span class="p">{</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_DEGRADED</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//Started/Primary/Active/Recovered
+</span><span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Recovered</span><span class="o">::</span><span class="n">Recovered</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">)</span> 
+<span class="p">{</span>
+  <span class="c1">// if we finished backfill, all acting are active; recheck if
+</span>  <span class="c1">// DEGRADED | UNDERSIZED is appropriate.
+</span>  <span class="k">if</span> <span class="p">(</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">get_osdmap</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">get_pg_size</span><span class="p">(</span><span class="n">pg</span><span class="o">-&gt;</span><span class="n">info</span><span class="p">.</span><span class="n">pgid</span><span class="p">.</span><span class="n">pgid</span><span class="p">)</span> <span class="o">&lt;=</span>
+      <span class="n">pg</span><span class="o">-&gt;</span><span class="n">actingbackfill</span><span class="p">.</span><span class="n">size</span><span class="p">())</span> <span class="p">{</span>
+    <span class="c1">//acting sets after backfill
+</span>    <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_DEGRADED</span><span class="p">);</span>
+    <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_FORCED_BACKFILL</span><span class="o">|</span> <span class="n">PG_STATE_FORCED_RECOVERY</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h5 id="6-pg_state_recovering">6. PG_STATE_RECOVERING</h5>
+
+<ul>
+  <li>
+    <p>state_set(PG_STATE_RECOVERING)</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//Started/Primary/Active/Recovering
+</span><span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Recovering</span><span class="o">::</span><span class="n">Recovering</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_RECOVERY_WAIT</span><span class="p">);</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_RECOVERY_TOOFULL</span><span class="p">);</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_RECOVERING</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>state_clear(PG_STATE_RECOVERING)</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//called before peering
+</span><span class="kt">void</span> <span class="n">PG</span><span class="o">::</span><span class="n">start_peering_interval</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_RECOVERING</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// when all replicas is recovered clear PG_STATE_RECOVERING
+</span><span class="n">boost</span><span class="o">::</span><span class="n">statechart</span><span class="o">::</span><span class="n">result</span>
+<span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Recovering</span><span class="o">::</span><span class="n">react</span><span class="p">(</span><span class="k">const</span> <span class="n">AllReplicasRecovered</span> <span class="o">&amp;</span><span class="n">evt</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_RECOVERING</span><span class="p">);</span>  
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h5 id="7-pg_state_backfilling">7. PG_STATE_BACKFILLING</h5>
+
+<ul>
+  <li>
+    <p>state_set(PG_STATE_BACKFILLING)</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PG</span><span class="o">::</span><span class="n">RecoveryState</span><span class="o">::</span><span class="n">Backfilling</span><span class="o">::</span><span class="n">Backfilling</span><span class="p">(</span><span class="n">my_context</span> <span class="n">ctx</span><span class="p">)</span> 
+<span class="p">{</span>
+  <span class="n">pg</span><span class="o">-&gt;</span><span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_BACKFILLING</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>state_clear(PG_STATE_BACKFILLING)</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">bool</span> <span class="n">PrimaryLogPG</span><span class="o">::</span><span class="n">start_recovery_ops</span><span class="p">()</span> 
+<span class="p">{</span>
+  <span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_BACKFILLING</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h5 id="8-pg_state_remapped">8. PG_STATE_REMAPPED</h5>
+
+<p>REMAPPED means the up set is not equals to acting set. More specific, a new OSD join the cluster. The cluster map changed. New acting set is calculated. Up set and acting set is not equal. So PG_STATE_REMAPPED is set.</p>
+
+<ul>
+  <li>
+    <p>state_set(PG_STATE_REMAPPED)</p>
+  </li>
+  <li>
+    <p>state_clear(PG_STATE_REMAPPED)</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/* Called before initializing peering during advance_map */</span>
+<span class="kt">void</span> <span class="n">PG</span><span class="o">::</span><span class="n">start_peering_interval</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// This will now be remapped during a backfill in cases
+</span>  <span class="c1">// that it would not have been before.
+</span>  <span class="k">if</span> <span class="p">(</span><span class="n">up</span> <span class="o">!=</span> <span class="n">acting</span><span class="p">)</span>
+    <span class="n">state_set</span><span class="p">(</span><span class="n">PG_STATE_REMAPPED</span><span class="p">);</span>
+  <span class="k">else</span>
+    <span class="n">state_clear</span><span class="p">(</span><span class="n">PG_STATE_REMAPPED</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>    </div>
+
+    <p>​</p>
+  </li>
+</ul>
+
+<h5 id="9-pg_state_stale">9. PG_STATE_STALE</h5>
+
+<p>If the Primary OSD of a placement group’s acting set fails to report to the monitor or if other OSDs have reported the primary OSD down, the monitors will mark the placement group stale.</p>
+
+<blockquote>
+  <p>This state is set by monitor not by the PG itself.</p>
+</blockquote>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="n">PGMonitor</span><span class="o">::</span><span class="n">on_active</span><span class="p">()</span>
+<span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">mon</span><span class="o">-&gt;</span><span class="n">is_leader</span><span class="p">())</span> <span class="p">{</span>
+	<span class="n">check_osd_map</span><span class="p">(</span><span class="n">mon</span><span class="o">-&gt;</span><span class="n">osdmon</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">osdmap</span><span class="p">.</span><span class="n">epoch</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="n">PGMonitor</span><span class="o">::</span><span class="n">check_osd_map</span><span class="p">(</span><span class="n">epoch_t</span> <span class="n">epoch</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">check_down_pgs</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="n">PGMonitor</span><span class="o">::</span><span class="n">check_down_pgs</span><span class="p">()</span> 
+<span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="n">p</span> <span class="o">:</span> <span class="n">pg_map</span><span class="p">.</span><span class="n">pg_stat</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">////is primary but is down
+</span>    <span class="k">if</span> <span class="p">((</span><span class="n">p</span><span class="p">.</span><span class="n">second</span><span class="p">.</span><span class="n">state</span> <span class="o">&amp;</span> <span class="n">PG_STATE_STALE</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span>
+        <span class="n">p</span><span class="p">.</span><span class="n">second</span><span class="p">.</span><span class="n">acting_primary</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span> <span class="o">&amp;&amp;</span>
+        <span class="n">osdmap</span><span class="o">-&gt;</span><span class="n">is_down</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">second</span><span class="p">.</span><span class="n">acting_primary</span><span class="p">))</span> <span class="p">{</span>
+        <span class="n">_try_mark_pg_stale</span><span class="p">(</span><span class="n">osdmap</span><span class="p">.</span><span class="n">get</span><span class="p">(),</span> <span class="n">p</span><span class="p">.</span><span class="n">first</span><span class="p">,</span> <span class="n">p</span><span class="p">.</span><span class="n">second</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="n">PGMonitor</span><span class="o">::</span><span class="n">_try_mark_pg_stale</span><span class="p">()</span> 
+<span class="p">{</span>
+  <span class="n">tat</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">|=</span> <span class="n">PG_STATE_STALE</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<hr />
+
+<p>Reference</p>
+
+<p><a href="https://github.com/whoiami/ceph">Source Code</a></p>
+
+<p><a href="http://docs.ceph.com/docs/master/">Ceph Document</a></p>
+
+<p>Ceph源码分析</p>
+
+
+  <div id="disqus_thread"></div>
+<script>
+/**
+* RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+* LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+*/
+/*
+var disqus_config = function () {
+this.page.url = PAGE_URL; // Replace PAGE_URL with your page's canonical URL variable
+this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+};
+*/
+(function() { // DON'T EDIT BELOW THIS LINE
+var d = document, s = d.createElement('script');
+
+s.src = '//whoiami.disqus.com/embed.js';
+
+s.setAttribute('data-timestamp', +new Date());
+(d.head || d.body).appendChild(s);
+})();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+</article>
+
+    </div>
+
+  </body>
+</html>

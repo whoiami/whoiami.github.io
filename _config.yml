@@ -1,0 +1,13 @@
+title: Be to a better man
+author: whoiami
+description: wait, who am i?
+
+highlighter: null
+permalink: /:title
+
+url:
+baseurl:
+
+sass:
+  sass_dir: public/css
+  style: :compressed
