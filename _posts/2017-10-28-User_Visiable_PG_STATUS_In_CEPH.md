@@ -22,15 +22,19 @@ Above RADOS layer, LIBRADOS, as it shows in Pic, is a library which supports dir
 
 #### Why PG state?
 
-PG is the minimum unit to perform reliable storage. For the most to debug work, PG state is the first parameter we may focus on. However, what is the PG state mean in the source code level and under what condition it will bring PG to some specific state(like CREATING, PEERING). This article will explain them all. The description of PG state can be found in [Ceph Website](http://docs.ceph.com/docs/master/rados/operations/monitoring-osd-pg/#monitoring-osds).
+PG is the minimum unit to perform reliable storage. For the most to debug work, PG state is the first parameter we may focus on. The description of PG state can be found in [Ceph Website](http://docs.ceph.com/docs/mast    er/rados/operations/monitoring-osd-pg/#monitoring-osds). 
+  
+This article will explain the following two questions.
+  
+  What is the PG state mean in the source code level and under what condition it will bring PG to some specific state(like CREATING, PEERING). 
 
 
 
 ---
 
-#### What a PG state machine looks like?
+#### What PG state machine looks like?
 
-Generally, it is just like the pic below. In ceph the state machine is called "recovery state machine".
+Generally, it is just like the pic below. In ceph, state machine is called "recovery state machine".
 
 ###### ![PG_state_machine](/public/images/2017-10-28/PG_STATE.png)
 
@@ -65,10 +69,13 @@ struct Initial : state< Initial, RecoveryMachine >, NamedState {
 };
 ```
 
-+sub-state
++ sub-state
 
 Another concept is sub-state. 
-The code fragment defines sub-state `Primary`. it is part of `Started` state and it starts from its substate `peering`.
+
+State `Started` is defined to be a state in RecoveryMachine.
+
+The code fragment defines sub-state `Primary`. It is part of `Started` state and it starts from its substate `peering`.
 
 
 ```c++
@@ -251,7 +258,19 @@ void PG::RecoveryState::Primary::exit(){
 }
 ```
 
-
+```c++
+boost::statechart::result PG::RecoveryState::Active::react(const AllReplicasActivated &evt) {
+  pg->state_clear(PG_STATE_ACTIVATING);
+  pg->state_clear(PG_STATE_CREATING);
+  //min_size;      ///< number of osds in each pg
+  if (pg->acting.size() >= pg->pool.info.min_size) {
+  	pg->state_set(PG_STATE_ACTIVE);
+  } else {
+    //Peer finished not enough osd cant move to active. wait for osd up.
+  	pg->state_set(PG_STATE_PEERED);
+  } 
+}
+```
 
 ##### 2. PG_STATE_PEERING
 
@@ -338,10 +357,9 @@ Once Ceph completes peering process, PG becomes "active". That basically means 
      if (peer_activated.size() == actingbackfill.size()){
        all_actived_and_committed();
      }
-     else {
-       if (acting.size() >= pool.info.min_size){
-         state_set(PG_STATE_ACTIVE);
-       }
+   } else {
+     if (acting.size() >= pool.info.min_size){
+       state_set(PG_STATE_ACTIVE);
      }
    }
  }
@@ -568,7 +586,7 @@ There are two cases that could lead PG to be PG_STATE_DEGRADED
 
 ##### 8. PG_STATE_REMAPPED
 
-REMAPPED means the up set is not equals to acting set. More specific, a new OSD join the cluster. The cluster map changed. New acting set is calculated. Up set and acting set is not equal. So PG_STATE_REMAPPED is set.
+REMAPPED means the up set is not equals to acting set. More specific, a new OSD join the cluster. PG is temporarily mapped to a different set of OSDs from what CRUSH specified. So PG_STATE_REMAPPED is set.
 
 - state_set(PG_STATE_REMAPPED)
 
@@ -639,7 +657,7 @@ Reference
 
 [Ceph Document](http://docs.ceph.com/docs/master/)
 
-Ceph源码分析
+[Ceph源码分析](https://book.douban.com/subject/26914637/)
 
 
 
