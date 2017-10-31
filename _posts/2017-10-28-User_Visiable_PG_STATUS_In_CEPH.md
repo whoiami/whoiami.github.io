@@ -259,15 +259,15 @@ void PG::RecoveryState::Primary::exit(){
 ```
 
 ```c++
-boost::statechart::result PG::RecoveryState::Active::react(const AllReplicasActivated &evt) {
+PG::RecoveryState::Active::react(const AllReplicasActivated &evt) {
   pg->state_clear(PG_STATE_ACTIVATING);
   pg->state_clear(PG_STATE_CREATING);
   //min_size;      ///< number of osds in each pg
   if (pg->acting.size() >= pg->pool.info.min_size) {
-  	pg->state_set(PG_STATE_ACTIVE);
+    pg->state_set(PG_STATE_ACTIVE);
   } else {
     //Peer finished not enough osd cant move to active. wait for osd up.
-  	pg->state_set(PG_STATE_PEERED);
+    pg->state_set(PG_STATE_PEERED);
   } 
 }
 ```
@@ -651,7 +651,7 @@ void PGMonitor::_try_mark_pg_stale()
 
 
 
-Reference
+###Reference
 
 [Source Code](https://github.com/whoiami/ceph)
 
