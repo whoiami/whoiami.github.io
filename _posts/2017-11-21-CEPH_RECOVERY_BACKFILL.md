@@ -3,8 +3,6 @@ layout: post
 title: Ceph恢复流程 概述
 ---
 
-## Ceph恢复流程 概述
-
 
 
 
