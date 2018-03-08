@@ -1,10 +1,10 @@
 ---
 layout: post
-title: Dynamo 论文导读
+title: Introduction to Amazon Dynamo
 ---
 
 
-Dynamo 是一个去中心化的k-v存储系统，它的定位是high availability，无论是任何时候提供能够读写的服务。对于一致性，dynamo提供最终一致性，本文中也提到，在一极少数情况下会出现一数据多版本的情况，dynamo会返回给上层处理。尽管dynamo不完美，但是对于去中心化系统的优化值得好好研读。正如文中所说
+Dynamo 是一个去中心化的k-v存储系统，它的定位是high availability，无论是任何时候提供能够读写的服务。对于一致性，dynamo提供最终一致性，本文中也提到，在极少数情况下会出现一数据多版本的情况，dynamo会返回给上层处理。尽管dynamo不完美，但是对于去中心化系统的优化值得好好研读。正如文中所说
 
 ```
 Dynamo has provided the desired levels of availability and performance 
@@ -15,7 +15,7 @@ and network partitions.
 
 ```
 
-4000+ citation，07年至今还被无数的人所关注，时间已经证明，dynamo是分布式存储系统中的一篇经典论文。
+07年至今，4000+ citation，被无数的人所关注，时间已经证明，dynamo是分布式存储系统中的一篇经典论文。
 
 定位：
 
