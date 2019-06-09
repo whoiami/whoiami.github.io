@@ -1,3 +1,9 @@
+---
+layout: post
+title: Pika Codis Solution
+---
+
+
 基本概念
 
 Next Release:

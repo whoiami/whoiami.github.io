@@ -1,14 +1,19 @@
-##Rang or Hash  this is a question
+---
+layout: post
+title: Rang or Hash  this is a question
+---
 
+
+<br/>
 
 
 Key distribution design may usually include two general method, Range the key space or Hash the key space.
 
  
 
-###1, RANGE
+### 1, RANGE
 
-example ` mangodb`
+example `mangodb`
 
 Data sapce (from -infinity to +infinity) is devided into 5 chunks.
 
@@ -32,17 +37,24 @@ Take key=12 for example.
                            hash func
                  |        |        |       |          |
                  |        |        |       |          |
-    -infinity                                                +infinity
               chunk1   chunk2   chunk3   chunk4     chunk5
+
+    -infinity                                                +infinity
+              
+<br/>
+    
 meta: 
 
 ​	shard1 : {chunk1, chunk2}
+
 ​	shard2 : {chunk3, chunk4}
+
 ​	shard3 : {chunk5}
 
 
+<br/>
 
-####Consider Split and Migrate
+#### Consider Split and Migrate
 
 If new shard4 is added into this map, chunks need to be split and migrated into new shard. 
 
@@ -70,17 +82,29 @@ Split and migrate
                   |       |         |        |           |        |
                   |       |         |        |           |        |
                chunk1   chunk2   chunk3_1  chunk3_2    chunk4   chunk5 
+
+               
+               
+<br/>
+
 meta: 
 
-  shard1 : {chunk1, chunk2}
-  shard2 : {chunk3_1, chunk4}
-  shard3 : {chunk5}
-  shard4 : {chunk3_2}
+​	shard1 : {chunk1, chunk2}
+
+​	shard2 : {chunk3_1, chunk4}
+
+​	shard3 : {chunk5}
+
+​	shard4 : {chunk3_2}
 
 
+<br/>
 
-###2, HASH
+
+### 2, HASH
+
 example `Pika`,  `Zeppelin`
+<br/>
 
 #### Func : hash(key) % partition_num
 
@@ -108,19 +132,19 @@ Still it is time consuming and really complexed. Usually, we dont support partit
 
 
 
-###3, RESULT:
+### 3, RESULT:
 
 SO, Range may lead to maintaining more meta about key shard mapping. Every time you need to check this map. However, this may benefit shard split. On the other hand, Hash is EASY to implement, one hash function will replace checking key-shard map. However, this fixed hash func may really make partition limited.
 
 
 
-Reference
+### Reference
 
-Pika github
+[Pika github](https://github.com/Qihoo360/pika)
 
-Zeppelin github
+[Zeppelin github](https://github.com/Qihoo360/zeppelin)
 
-Mangodb Websit
+[Monogodb Websit](https://docs.mongodb.com/manual/sharding/)
 
 
 
