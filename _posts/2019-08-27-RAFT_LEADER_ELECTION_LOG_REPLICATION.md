@@ -19,7 +19,9 @@ Term 的概念是类似于纪元的概念，只要需要重新选举，这个ter
 
 Index 是每一次请求的编号。为了避免同一条命令多次重复执行，raft 为每一次请求创建一个编号，如果收到已经执行了的index，节点并不会重复执行。（chaper 8）
 
-<div align=center>![](/public/images/2019-08-27/term_index.png)</div>
+<div style="text-align: center">
+<img src="/public/images/2019-08-27/term_index.png"/>
+</div>
 
 #### Commit and Apply
 
@@ -39,7 +41,10 @@ Apply: 此条log被应用到state machine中，这条log 是被applied。个人�
 
 <br/>
 
-![](/public/images/2019-08-27/election.png)
+<div style="text-align: center">
+<img src="/public/images/2019-08-27/election.png"/>
+</div>
+
 
 选主的过程逻辑相对简单。如果follow 自己的timer过期，节点自己会发送RequestVote RPC进行选举，如果收到了大多数的选票支持，这个节点自然成为leader。如果在timer内没有收到半数选举，就在一个新的term中重新进行下一轮的选举。值得注意的是raft规定（chaper 5.1），无论任何时候收到了请求中term 比current_term 大。该节点更新自己的current_term并且变为follower。
 
@@ -68,8 +73,9 @@ raft 比较log中的term 谁大谁就更Up-to-date。如果term一样，谁更�
 <br/>
 Leader election结束后，leader 会在自己的term中不停的向从发送log （AppendEntries RPC），在收到多数follower 收到这条log之后，就可以写入到State Machine中，之后返回客户端。
 
-![](/public/images/2019-08-27/replicated_state_machine.png)
-
+<div style="text-align: center">
+<img src="/public/images/2019-08-27/replicated_state_machine.png"/>
+</div>
 
 
 <br/>
@@ -78,8 +84,9 @@ Leader election结束后，leader 会在自己的term中不停的向从发送log
 相比于上述状态机描述的场景，实际的情况要复杂的多，follower如何能放心的写下当前log 并且确保这条log之前所有的log 都跟主一样呢？
 
 Raft 论文中列举出了follower log的几种情况。
-
-![](/public/images/2019-08-27/possible_followers.png)
+<div style="text-align: center">
+<img src="/public/images/2019-08-27/possible_followers.png"/>
+</div>
 
 从上图中可以看出，由于频繁的网络割接和节点故障。最终的follower本地log会比较复杂。
 
@@ -99,13 +106,13 @@ Raft 算法是在AppendEntries RPC 中带有当前同步log 上一条log 的term
 
 Leader 收到大多数follower的AppendEntries RPC反馈，就可以commit当前log。Raft 论文中讨论了一种特殊的情况。为了保证Leader Completeness的属性，Raft 永远不会commit 不属于自己term的log。
 
-```
+>
 Raft never commits log entries from previous terms by counting replicas. 
-```
 
 Raft 论文提出了一种场景如下：
-
-![](/public/images/2019-08-27/figure8.png)
+<div style="text-align: center">
+<img src="/public/images/2019-08-27/figure8.png"/>
+</div>
 
 在步骤c的时候，如果可以commit 不属于当前term的log ，那么term2 的黄色log 应该被commit，但是如果这个log被commit 之后，步骤d会覆盖这个黄色log，违背了Leader Completeness 性质，也就是committed log 丢失了。所以，反证法得知Raft 不应该commit 不属于自己term的log。
 
