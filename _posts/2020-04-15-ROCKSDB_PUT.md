@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Rocksdb Source Code Analysis PUT
+title: Rocksdb Code Analysis PUT
 ---
 ![](/public/images/2020-04-15/rocksdb_cover.png)
 <br>

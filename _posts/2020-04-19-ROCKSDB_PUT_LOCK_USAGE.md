@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Rocksdb Source Code Analysis PUT--LOCK USAGE
+title: Rocksdb Code Analysis PUT--LOCK USAGE
 ---
 
 ![](/public/images/2020-04-15/rocksdb_cover.png)
