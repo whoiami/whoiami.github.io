@@ -245,7 +245,7 @@ TableCache::FindTable 函数中对于cache miss的table会新建sst的文件指�
 
 <br>
 
-### 总结
+### Conclusion
 
 至此，大致了解了Rocksdb 的Get 流程，对于Rocksdb使用者来说 Get流程是更值得关注的一部分，因为对于Put流程，Rocksdb 有着天然的优势，往往遇到瓶颈的正是其读请求。
 

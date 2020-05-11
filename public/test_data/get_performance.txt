@@ -1,0 +1,66 @@
+4850  17:28:10.168420 futex(0x12cc9b0, FUTEX_WAKE_PRIVATE, 1 <unfinished ...>
+4850  17:28:10.168520 <... futex resumed> ) = 1 <0.000096>
+4850  17:28:10.168615 open("/data1/db0/332870.sst", O_RDONLY <unfinished ...>
+4850  17:28:10.168715 <... open resumed> ) = 439 <0.000094>
+4850  17:28:10.168826 fcntl(439, F_GETFD <unfinished ...>
+4850  17:28:10.168932 <... fcntl resumed> ) = 0 <0.000102>
+4850  17:28:10.169035 fcntl(439, F_SETFD, FD_CLOEXEC <unfinished ...>
+4850  17:28:10.169126 <... fcntl resumed> ) = 0 <0.000087>
+4850  17:28:10.169201 fstat(439,  <unfinished ...>
+4850  17:28:10.169271 <... fstat resumed> {st_mode=S_IFREG|0644, st_size=21250751, ...}) = 0 <0.000066>
+4850  17:28:10.169328 lstat("/sys",  <unfinished ...>
+4850  17:28:10.169390 <... lstat resumed> {st_mode=S_IFDIR|0555, st_size=0, ...}) = 0 <0.000056>
+4850  17:28:10.169457 lstat("/sys/dev",  <unfinished ...>
+4850  17:28:10.169530 <... lstat resumed> {st_mode=S_IFDIR|0755, st_size=0, ...}) = 0 <0.000068>
+4850  17:28:10.169600 lstat("/sys/dev/block",  <unfinished ...>
+4850  17:28:10.169670 <... lstat resumed> {st_mode=S_IFDIR|0755, st_size=0, ...}) = 0 <0.000065>
+4850  17:28:10.169738 lstat("/sys/dev/block/259:0",  <unfinished ...>
+4850  17:28:10.169798 <... lstat resumed> {st_mode=S_IFLNK|0777, st_size=0, ...}) = 0 <0.000055>
+4850  17:28:10.169862 readlink("/sys/dev/block/259:0",  <unfinished ...>
+4850  17:28:10.169933 <... readlink resumed> "../../devices/pci0000:3a/0000:3a"..., 4095) = 69 <0.000066>
+4850  17:28:10.169995 lstat("/sys/devices",  <unfinished ...>
+4850  17:28:10.170059 <... lstat resumed> {st_mode=S_IFDIR|0755, st_size=0, ...}) = 0 <0.000060>
+4850  17:28:10.170130 lstat("/sys/devices/pcixxxx",  <unfinished ...>
+4850  17:28:10.170196 <... lstat resumed> {st_mode=S_IFDIR|0755, st_size=0, ...}) = 0 <0.000061>
+4850  17:28:10.170260 lstat("/sys/devices/pcixxx/xxx",  <unfinished ...>
+4850  17:28:10.170319 <... lstat resumed> {st_mode=S_IFDIR|0755, st_size=0, ...}) = 0 <0.000054>
+4850  17:28:10.170373 lstat("/sys/devices/pcixxx/xxx/xxx",  <unfinished ...>
+4850  17:28:10.170418 <... lstat resumed> {st_mode=S_IFDIR|0755, st_size=0, ...}) = 0 <0.000040>
+4850  17:28:10.170476 lstat("/sys/devices/pcixxx/xxx/xxx/nvme",  <unfinished ...>
+4850  17:28:10.170536 <... lstat resumed> {st_mode=S_IFDIR|0755, st_size=0, ...}) = 0 <0.000056>
+4850  17:28:10.170604 lstat("/sys/devices/pcixxx/xxx/xxx/nvme/nvme0",  <unfinished ...>
+4850  17:28:10.170671 <... lstat resumed> {st_mode=S_IFDIR|0755, st_size=0, ...}) = 0 <0.000063>
+4850  17:28:10.170741 lstat("/sys/devices/xxx/xxx/xxx/nvme/nvme0/nvme0n1",  <unfinished ...>
+4850  17:28:10.170810 <... lstat resumed> {st_mode=S_IFDIR|0755, st_size=0, ...}) = 0 <0.000064>
+4850  17:28:10.170877 open("/sys/devices/pcixxx/xxx/xxx/nvme/nvme0/queue/logical_block_size", O_RDONLY <unfinished ...>
+4850  17:28:10.170953 <... open resumed> ) = -1 ENOENT (No such file or directory) <0.000069>
+// read Footer
+4850  17:28:10.171015 fadvise64(439, 0, 0, POSIX_FADV_RANDOM <unfinished ...>
+4850  17:28:10.171079 <... fadvise64 resumed> ) = 0 <0.000060>
+4850  17:28:10.171149 readahead(439, 20726463, 524288 <unfinished ...>
+4850  17:28:10.171298 <... readahead resumed> ) = 0 <0.000145>
+4850  17:28:10.171353 pread64(439,  <unfinished ...>
+4850  17:28:10.171418 <... pread64 resumed> "\1\210\224\212\nR\337\224\212\n\246\360\6\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"..., 53, 21250698) = 53 <0.000061>
+4850  17:28:10.171493 fstat(439,  <unfinished ...>
+4850  17:28:10.171575 <... fstat resumed> {st_mode=S_IFREG|0644, st_size=21250751, ...}) = 0 <0.000078>
+4850  17:28:10.171670 ioctl(439, FS_IOC_GETVERSION <unfinished ...>
+4850  17:28:10.171763 <... ioctl resumed> , 0x7fd7c5fe96e8) = 0 <0.000088>
+//GetTableReader takes 1200 us in total
+
+// read meta block
+4850  17:28:10.171846 pread64(439,  <unfinished ...>
+4850  17:28:10.171919 <... pread64 resumed> "\0!\7filter.rocksdb.BuiltinBloomFi"..., 87, 21137928) = 87 <0.000070>
+4850  17:28:10.171983 pread64(439,  <unfinished ...>
+4850  17:28:10.172037 <... pread64 resumed> "\0$\4rocksdb.block.based.table.ind"..., 877, 21137051) = 877 <0.000050>
+// read key value
+4850  17:28:10.172154 pread64(439,  <unfinished ...>
+4850  17:28:10.172275 <... pread64 resumed> "\261\207\0160\0\20\00388959906\21\377\t\1\24\0\217\25\0\21\4\r\26\00472\21"..., 112683, 21138015) = 112683 <0.000118>
+4850  17:28:10.172518 pread64(439,  <unfinished ...>
+4850  17:28:10.172615 <... pread64 resumed> "\254QV<\21\35\3qw@\222\27\224\233\244\6\353\330\356)\3=l\226t\307<\324\300\202\"\6"..., 164727, 20972324) = 164727 <0.000094>
+4850  17:28:10.172725 close(3389 <unfinished ...>
+4850  17:28:10.172787 <... close resumed> ) = 0 <0.000058>
+4850  17:28:10.172848 pread64(439,  <unfinished ...>
+4850  17:28:10.172988 <... pread64 resumed> "\225\37h\0\201\1\314\0018896880-KEYasdlkjlkakj\1\v"..., 2709, 20323813) = 2709 <0.000137>
+//read key tasks 550 us
+
+
