@@ -211,7 +211,7 @@ bool InlineSkipList<Comparator>::KeyIsAfterNode(const char* key,
  
 <br>
 
-### 总结
+### Conclusion
 
 <br>
 Rocksdb中提供的并发写入SkipList的接口，这极大提高了SkipList的Insert效率，对于通用的场景，这是一个非常亮眼的优化。但前提是插入的位置并不集中，如果并发写入的位置大概率是同一个位置，会造成线程大概率在重新计算本层的前序和后继，造成CPU资源的浪费。

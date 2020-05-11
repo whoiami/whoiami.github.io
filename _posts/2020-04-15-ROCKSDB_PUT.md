@@ -232,7 +232,7 @@ void WriteThread::ExitAsBatchGroupFollower(Writer* w) {
 
 <br>
 
-### 总结
+### Conclusion
 
 总体上Rocksdb的写入流程与Leveldb相似，都是用合并写的方式将多个线程上的写请求合并成一个Group，减少WAL的写入次数。不同与Leveldb的是，Rocksdb当中写入memtable是允许并发写的，在memtable的实现是skiplist的情况下，rocksdb 的选项*allow_concurrent_memtable_write* (default true)可以使线程并发的无锁插入skiplist当中，目前的memtable实现中也只有skiplist支持[Concurrent Insert](https://github.com/facebook/rocksdb/wiki/MemTable#comparison)操作。另外，AwaitState函数当中对于线程等待其他线程这件事rocksdb做了更详细的优化。可以期待一下之后的文章会对这两方面做更详细的介绍。
 

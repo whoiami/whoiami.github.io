@@ -422,7 +422,7 @@ Prev 跟Next 的做法基本相同。
 
 <br>
 
-### 总结
+### Conclusion
 
 MergingIterator 像其名字一样，把其管理的iterator 通过merge操作，向上返回一个有序的遍历结果。这样，rocksdb的使用者可以通过申请一个简单的DBImpl::NewIterator，有序遍历整个数据库的全部内容。
 
