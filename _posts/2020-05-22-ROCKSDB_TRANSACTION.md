@@ -80,7 +80,7 @@ s = txn->Commit();
 Transaction* txn = txn_db->BeginTransaction(write_options);
 read_options.snapshot = txn_db->GetSnapshot();
 		// Put a key outside of transaction
-    s = txn_db->Put(write_options, "abc", "xyz");
+		s = txn_db->Put(write_options, "abc", "xyz");
 s = txn->GetForUpdate(read_options, "abc", &value);
 // s is Resource busy:
 s = txn->GetForUpdate(read_options, "abc", &value);
@@ -98,7 +98,7 @@ GetForUpdate 函数检测到在本Transaction之外DB已经对这个key进行了
 Transaction* txn = txn_db->BeginTransaction(write_options);
 read_options.snapshot = txn_db->GetSnapshot();
 		// Put a key outside of transaction
-    s = txn_db->Put(write_options, "abc", "xyz");
+		s = txn_db->Put(write_options, "abc", "xyz");
 txn->SetSnapshot();
 s = txn->GetForUpdate(read_options, "abc", &value);
 // s is ok res "xyz"
@@ -190,6 +190,8 @@ Status PessimisticTransaction::ValidateSnapshot(
                                               snapshot_->GetSequenceNumber(),
                                                false /* cache_only */);
 }
+
+
 Status TransactionUtil::CheckKeyForConflicts(
     DBImpl* db_impl,ColumnFamilyHandle* column_family,const std::string& key,
     SequenceNumber snap_seq, bool cache_only) {
@@ -198,6 +200,8 @@ Status TransactionUtil::CheckKeyForConflicts(
         db_impl->GetEarliestMemTableSequenceNumber(sv, true);
   return CheckKey(db_impl, sv, earliest_seq, snap_seq, key, cache_only);
 }
+
+
 Status TransactionUtil::CheckKey(DBImpl* db_impl, SuperVersion* sv,
                                  SequenceNumber earliest_seq,
                                  SequenceNumber snap_seq,
@@ -272,6 +276,8 @@ class OptimisticTransactionCallback : public WriteCallback {
     return txn_->CheckTransactionForConflicts(db);
   }
 }
+
+
 Status OptimisticTransaction::CheckTransactionForConflicts(DB* db) {
   // Since we are on the write thread and do not want to block other writers,
   // we will do a cache-only conflict check.  This can result in TryAgain
@@ -280,6 +286,8 @@ Status OptimisticTransaction::CheckTransactionForConflicts(DB* db) {
   return TransactionUtil::CheckKeysForConflicts(db_impl, GetTrackedKeys(),
                                                 true /* cache_only */);
 }
+
+
 Status TransactionUtil::CheckKeysForConflicts(DBImpl* db_impl,
                                             const TransactionKeyMap& key_map,
                                             bool cache_only) {
