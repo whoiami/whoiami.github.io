@@ -7,7 +7,7 @@ title: Rocksdb Code Analysis Get Performance
 
 <br>
 
-###Previous On Rocksdb 
+### Previous On Rocksdb
 
 之前的博客讨论了[DBImpl::Get接口实现](https://whoiami.github.io/ROCKSDB_GET)，Rocksdb Get 接口会依次在memtable， immutable memtable，和version 中查找当前key。如果每次都是内存查找命中例如在memtable 中命中，例如Put之后马上Get的场景，Get的性能当然非常好。但是考虑如果每次都查盘的场景，例如在rocksdb中读到很久之前的数据，这样的场景下rockdb的性能如何呢？下面让我们通过实际测试结合代码进行分析。
 
@@ -47,7 +47,7 @@ title: Rocksdb Code Analysis Get Performance
 
 ```
 
-可以看出 **#5 **中TableCache::FindTable中由于待查找sst对应的TableReader没有被创建，需要调用TableCache::GetTableReader创建TableReader，并缓存到table_cache中。所以，怀疑是缓存TableReader对应的参数**max_open_files** 配置不够高，大多数请求需要重新创建TableReader。
+可以看出 **#5** 中TableCache::FindTable中由于待查找sst对应的TableReader没有被创建，需要调用TableCache::GetTableReader创建TableReader，并缓存到table_cache中。所以，怀疑是缓存TableReader对应的参数**max_open_files** 配置不够高，大多数请求需要重新创建TableReader。
 
 再次测试时，配置**max_open_files** 为-1，缓存所有创建过的TableReader后，Get QPS 达到了**30W**左右，disk iops 也是30W左右。由于测试的是Rocksdb每次请求都读盘的场景，所以结果还比较符合预期。
 
