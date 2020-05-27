@@ -72,7 +72,7 @@ class MergingIterator::InternalIterator {
 
   ```c++
 Iterator* DBImpl::NewIterator(const ReadOptions& read_options,
-															ColumnFamilyHandle* column_family) {
+                              ColumnFamilyHandle* column_family) {
   return NewInternalIterator(read_options, cfd, sv, db_iter->GetArena(),
     db_iter->GetRangeDelAggregator());
 }
