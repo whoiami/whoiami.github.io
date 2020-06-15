@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Pika传火计划之Pika线程模型
+title: Pika传火计划之线程模型
 ---
 
 <br>
