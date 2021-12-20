@@ -28,7 +28,7 @@ MySql8.0  对于mtr redo 的并发写入做了重构，通过一个atomic 原子
 
 <br>
 
-### 数据结构
+### Data Structure
 
 
 <br>
@@ -74,7 +74,7 @@ Link_buf<lsn_t> recent_written;
 
 <br>
 
-### MTR commit
+### MTR Commit Code Analysis
 
 
 
@@ -176,7 +176,7 @@ void log_buffer_close(log_t &log, const Log_handle &handle) {
 
 
 
-### redo 写入相关线程：
+### Redo write and flush thread
 
 <br>
  log_writer 线程主要控制redo 写到page cache中，log_flusher线程主要负责redo 的flush。
