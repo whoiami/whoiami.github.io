@@ -86,7 +86,7 @@ void mtr_t::Command::execute() {
   auto handle = log_buffer_reserve(*log_sys, len);
   m_impl->m_log.for_each_block(write_log);
      |
-    log_buffer_write(*log_sys, m_handle, block->begin(), block->used(), start_lsn);
+    log_buffer_write(*log_sys, m_handle, ..., start_lsn);
     log_buffer_write_completed(*log_sys, m_handle, start_lsn, end_lsn);
   
   log_wait_for_space_in_log_recent_closed(*log_sys, handle.start_lsn);
@@ -126,9 +126,11 @@ static inline sn_t log_buffer_s_lock_enter_reserve(log_t &log, size_t len) {
 log_buffer_write将m_log 的内容拷贝到log_sys.buf 当中。之后调用log_buffer_write_completed，如果recent_written 有空余的位置，将这次写入的lsn 插入到对应recent_written 当中。
 
 ```c++
-lsn_t log_buffer_write(log_t &log, const Log_handle &handle, const byte *str,size_t str_len, lsn_t start_lsn) {
-  // str 是所有的redo data不包括LOG_BLOCK_HDR_SIZE的头跟LOG_BLOCK_TRL_SIZE，copy到log_sys->buf里面之后需要带上LOG_BLOCK_HDR_SIZE的头跟LOG_BLOCK_TRL_SIZE信息。
-  // 如果刚好写到log->buf 当中512对齐的最后一个blok，需要预创建LOG_BLOCK_HDR_SIZE的头跟LOG_BLOCK_TRL_SIZE。
+lsn_t log_buffer_write(log_t &log, ..., lsn_t start_lsn) {
+  // str 是所有的redo data不包括LOG_BLOCK_HDR_SIZE的头跟LOG_BLOCK_TRL_SIZE，copy
+  // 到log_sys->buf里面之后需要带上LOG_BLOCK_HDR_SIZE的头跟LOG_BLOCK_TRL_SIZE信
+  // 息。如果刚好写到log->buf 当中512对齐的最后一个blok，需要预创建
+  // LOG_BLOCK_HDR_SIZE的头跟LOG_BLOCK_TRL_SIZE。
 }
 
 void log_buffer_write_completed(log_t &log, const Log_handle &handle,
