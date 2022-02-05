@@ -20,6 +20,7 @@ Innodb 使用的是B-tree 的形式来存储数据，这就意味着如果一个
 需要说明的是，8.0 版本对于blob 这种数据类型进行了比较大的重构，主要支持了Partical Update 的优化，与5.6 和 5.7 版本的blob 的物理数据结构有比较大的变动。这里的数据结构并不适用于5.6 跟5.7 版本。
 
 
+<br>
 
 ### 数据结构
 
@@ -48,8 +49,10 @@ OFFSET_TRX_ID = OFFSET_DATA_LEN + 4; 6bytes （初始化first page 的时候用�
 OFFSET_INDEX_LIST = OFFSET_TRX_ID + 6;
 	index_list 
 4Bytes	FLST_LEN 0  /* 32-bit list length field */ 4bytes
-6Bytes	FLST_FIRST 4 /* (space + offset)of the first element of the list; undefined if empty list */
-6Bytres	FLST_LAST (4 + FIL_ADDR_SIZE) /* the last element of the list; undefined if empty list */
+6Bytes	FLST_FIRST 4 /* (space + offset)of the first element of the list;
+                        undefined if empty list */
+6Bytres	FLST_LAST (4 + FIL_ADDR_SIZE) /* the last element of the list;
+                                         undefined if empty list */
   
 OFFSET_INDEX_FREE_NODES =  OFFSET_INDEX_LIST + FLST_BASE_NODE_SIZE(4+ 2*6);
   free list
@@ -72,6 +75,7 @@ LOB_PAGE_TRAILER_LEN = FIL_PAGE_DATA_END;
 
 
 
+<br>
 
 #### Index Entry
 
@@ -103,13 +107,15 @@ SIZE = OFFSET_LOB_VERSION + 4;
 
 
 
+<br>
 #### 2，Index Page
 
 <br>
 <img src="/public/images/2021-12-01/blob_index_page.png" style="zoom:67%;" />
 
 ```c++
-/** The node page (also can be called as the index page) contains a list of index_entry_t objects. */
+/** The node page (also can be called as the index page) contains a list of
+    index_entry_t objects. */
 struct node_page_t : public basic_page_t;
 
 OFFSET_VERSION = FIL_PAGE_DATA; 1byte
@@ -117,6 +123,7 @@ LOB_PAGE_DATA = OFFSET_VERSION + 1;
 ```
 
 
+<br>
 
 #### 3，Data page
 
@@ -134,6 +141,7 @@ LOB_PAGE_DATA = OFFSET_TRX_ID + 6;
 
 
 
+<br>
 #### 4，Reference
 
 <br>
@@ -158,7 +166,7 @@ BTR_EXTERN_VERSION = BTR_EXTERN_OFFSET; (这里新版本是代表lob version)
 The 2 highest bits are reserved to the flags below. */
 BTR_EXTERN_LEN  =12       4Bytes
 
-BTR_EXTERN_LEN 开始预留了4个bytes，第一个byte 的最高三位位用作标记blob 的状态分别是一下三种：
+BTR_EXTERN_LEN 开始预留了4个bytes第一个byte的最高三位用作标记blob的状态分别是以下三种
 
 BTR_EXTERN_LEN + 4 开始的4bytes 是blob的长度。
 
@@ -186,10 +194,9 @@ Blob Ref 的长度是20
 
 
 
+<br>
 ### Code Analysis
 
-
-<br>
 
 ### Insert 
 
@@ -208,21 +215,29 @@ insert into blobtest values(1, REPEAT('w', 1 * 16 * 1000 * 15));
 其debug 打印输入如下：
 
 ```
-[lob::print: trx_id=2665, avail_lob=240000, [ref_t: m_ref=, space_id=10, page_no=5, offset=1, length=240000, is_being_modified=1, is owner=1, is is_inherited0]
+[lob::print: trx_id=2665, avail_lob=240000, [ref_t: m_ref=, space_id=10,
+page_no=5, offset=1, length=240000, is_being_modified=1, is owner=1,
+is is_inherited0]
 
 [n_entries=15,          
 
-[index_entry_t: node=, self=[fil_addr_t: page=5, boffset=96], creator trxid=2665, modifier_trxid=2665, trx_undo_no=0, page_no=5, data_len=15680, lob version=1, index_id=158, next=[fil_addr_t: page=5, boffset=156], prev=[fil_addr_t: page=4294967295, boffset=0], versions=[flst_base_node_t: len=0, first=[fil_addr_t: page=4294967295, boffset=0], last=[fil_addr_t: page=4294967295, bof
-fset=0]]]                                                                                                                                                                                             [index_entry_t: node=, self=[fil_addr_t: page=5, boffset=156], creator trxid=2665, modifier_trxid=2665, trx_undo_no=0, page_no=6, data_len=16327, lob version=1, index_id=158, next=[fil_addr_t: page=5, boffset=216], prev=[fil_addr_t: page=5, boffset=96], versions=[flst_base_node_t: len=0, first=[fil_addr_t: page=4294967295, boffset=0], last=[fil_addr_t: page=4294967295, boffset=0]
-]]  
+[index_entry_t: node=, self=[fil_addr_t: page=5, boffset=96],
+                       next=[fil_addr_t: page=5, boffset=156],
+                       prev=[fil_addr_t: page=4294967295, boffset=0]]                                                                                                                             
+                       
+[index_entry_t: node=, self=[fil_addr_t: page=5, boffset=156],
+                       next=[fil_addr_t: page=5, boffset=216],
+                       prev=[fil_addr_t: page=5, boffset=96]]  
 。。。
-[index_entry_t: node=, self=[fil_addr_t: page=16, boffset=39], creator trxid=2665, modifier_trxid=2665, trx_undo_no=0, page_no=15, data_len=16327, lob version=1, index_id=158, next=[fi
-l_addr_t: page=16, boffset=99], prev=[fil_addr_t: page=5, boffset=636], versions=[flst_base_node_t: len=0, first=[fil_addr_t: page=4294967295, boffset=0], last=[fil_addr_t: page=4294967295, boffset=
-0]]]
+
+[index_entry_t: node=, self=[fil_addr_t: page=16, boffset=39],
+                       next=[fil_addr_t: page=16, boffset=99],
+                       prev=[fil_addr_t: page=5, boffset=636]]
 。。。
-[index_entry_t: node=, self=[fil_addr_t: page=16, boffset=279], creator trxid=2665, modifier_trxid=2665, trx_undo_no=0, page_no=20, data_len=12069, lob version=1, index_id=158, next=[f
-il_addr_t: page=4294967295, boffset=0], prev=[fil_addr_t: page=16, boffset=219], versions=[flst_base_node_t: len=0, first=[fil_addr_t: page=4294967295, boffset=0], last=[fil_addr_t: page=4294967295,
- boffset=0]]]
+
+[index_entry_t: node=, self=[fil_addr_t: page=16, boffset=279],
+                       next=[fil_addr_t: page=4294967295, boffset=0],
+                       prev=[fil_addr_t: page=16, boffset=219]]
 ]
 ```
 
@@ -243,9 +258,10 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
 																				const upd_t *upd, ulint *offsets, 
 																				const big_rec_t *big_rec_vec,
 																				mtr_t *btr_mtr, opcode op) {
-  // upd 存放着SQL层面解析的数据，如果是json格式还存放partical update 需要更新blob 的offset 和len 以及数据
-  // big_rec_vec 存放着需要存放insert 的数据
-  // pcur 当中存放了primary index record的内容，里面偏移一点量之后可以解析出来对应的这一个blob ref
+  // upd 存放着SQL层面解析的数据，如果是json格式还存放partical update 需要更新blob 的
+  // offset 和len 以及数据 big_rec_vec 存放着需要存放insert 的数据
+  // pcur 当中存放了primary index record的内容，里面偏移一点量之后可以解析出来对应的这
+  // 一个blob ref
   if (/*upd 当中判断是否要做partical update */) {
     lob::update(ctx, trx, index, upd, field_no, blobref);
   } else {
@@ -261,10 +277,12 @@ dberr_t insert(...) {
   first.init_lob_version();
   // 先写first page 当中装数据的部分
   ulint to_write = first.write(trxid, ptr, len);
-  // alloc first page 当中的第一个index entry, 这个index entry 的数据指向first page 的data部分。
+  // alloc first page 当中的第一个index entry, 这个index entry 的数据指向first page
+  // 的data部分。
   flst_node_t *node = first.alloc_index_entry(ctx->is_bulk());
   while (remaining > 0) {
-    // 不断创建index entry，创建data_page_t。写入数据，把index entry 指向data_page_t 上面。
+    // 不断创建index entry，创建data_page_t。写入数据，把index entry 指向data_page_t
+    // 上面。
     ...
     // 一定次数之后去commit 释放page锁，防止一个超级大的blob 把其他事务卡死。
     // commit 之后再start 一个新的mtr
@@ -274,7 +292,8 @@ dberr_t insert(...) {
       first.load_x(first_page_id, page_size);
     }
   }
-  ref.update(space_id, first_page_no, 1, mtr); // 更新primary index record 中 blob 的索引
+  ref.update(space_id, first_page_no, 1, mtr); // 更新primary index record 中
+                                               // blob 的索引
 }
 ```
 
@@ -285,6 +304,7 @@ dberr_t insert(...) {
 
 
 
+<br>
 
 ### Update
 
@@ -305,7 +325,8 @@ dberr_t insert(...) {
 
 ```c++
 dberr_t update(...const upd_t *upd) {
-  // udp_t 是SQL层面处理使用的数据结构，SQL计算出了这次update 需要更新在Blob 中的offset 和len，以及需要更新的具体内容，存放在Binary_diff_vector
+  // udp_t 是SQL层面处理使用的数据结构，SQL计算出了这次update 需要更新在Blob 中的offset
+  // 和len，以及需要更新的具体内容，存放在Binary_diff_vector
   mtr_t *mtr = ctx.get_mtr(); 
   first_page_t first_page(mtr, index);
   //first page x锁
@@ -326,15 +347,20 @@ dberr_t update(...const upd_t *upd) {
  }
 
  dberr_t replace() {
-   // 查找page_offset 对应的index_entry_t位置，大概率是一个data_block_t 的中间位置，直接读上来x 锁，然后拷贝这个page 到新的data_block_t当中, 在新的page 当中完成从page_offset 开始的数据拷贝。(如果找到的是first_page_t新建一个data_page_t, 拷贝first_page_t 的数据部分到data_page_t当中)。 
+   // 查找page_offset 对应的index_entry_t位置，大概率是一个data_block_t 的中间位置
+   // 直接读上来x 锁，然后拷贝这个page 到新的data_block_t当中, 在新的page 当中完成
+   // 从page_offset 开始的数据拷贝。(如果找到的是first_page_t新建一个data_page_t,
+   // 拷贝first_page_t 的数据部分到data_page_t当中)。 
    ...
-   // 如果剩余数据量大于一个data_page_t 的数据容量，直接new 一个新的data_page_t 更新数据，不需要再读原来的data_page_t
+   // 如果剩余数据量大于一个data_page_t 的数据容量，直接new 一个新的data_page_t 更
+   // 新数据，不需要再读原来的data_page_t
    ...
    // 如果还有剩余数据量小于一个data_page_t 的数据，直接进行开始步骤中的步骤更新数据。
  }
 ```
 
 
+<br>
 
 ### Read
 
@@ -363,8 +389,8 @@ ulint read(ref_t ref, ...) {
     const uint32_t entry_lob_version = cur_entry.get_lob_version();
     if (entry_lob_version > lob_version){
       while (!fil_addr_is_null(node_versions)) {
-        // 当前index entry 的version 大于blob ref的version，说明不应该读到当前version的数据
-        // 应该沿着versions_list 横向查找小于blob ref version的index entry
+        // 当前index entry 的version 大于blob ref的version，说明不应该读到当前version
+        // 的数据,应该沿着versions_list 横向查找小于blob ref version的index entry
       }
       // 读取找到的data_page_t 的数据。加s锁记录到data_mtr 中。
       ...
@@ -382,6 +408,7 @@ ulint read(ref_t ref, ...) {
 
 
 
+<br>
 ### Delete
 
 <br>
@@ -398,7 +425,8 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   page_id_t page_id(space_id, first_page_no);
   // load first page
   first.load_x(page_id, page_size);
-  // 遍历这个blob 所有old versions，如果这个index entry 是这个undo 修改的，那么可以删除这个index entry 对应的data page。
+  // 遍历这个blob 所有old versions，如果这个index entry 是这个undo 修改的，那么可以删除
+  // 这个index entry 对应的data page。
   if (vers_entry.can_be_purged(trxid, undo_no)) {
     ver_loc = vers_entry.purge_version(index, trxid, vers, free_list);
   }
@@ -419,6 +447,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
 
 
+<br>
 
 ### Partical Update Optimization
 
@@ -460,9 +489,10 @@ trx_undo_page_report_modify_ext_func(
   if (ext_buf) {
     ptr += mach_write_compressed(ptr, UNIV_EXTERN_STORAGE_FIELD);
     ptr += mach_write_compressed(ptr, *len);
-    // 取prefix 这个应该是blob 做索引的情况。=> btr_copy_externally_stored_field_prefix_func
-    *field = trx_undo_page_fetch_ext(trx, index, ext_buf, prefix_len, page_size,
-                                     *field, is_sdi, len);
+    // 取prefix 这个应该是blob 做索引的情况
+    // => btr_copy_externally_stored_field_prefix_func
+    *field = trx_undo_page_fetch_ext(trx, index, ext_buf, prefix_len,
+                                     page_size, *field, is_sdi, len);
 
     ptr += mach_write_compressed(ptr, *len + spatial_len);
 }
@@ -494,27 +524,22 @@ trx_undo_report_blob_update() {
 ```
 
 
+<br>
 
 至此，关于Blob 物理数据结构的梳理基本上就完结了。
 
 
+<br>
 
 ### Reference
 
 <br>
-https://github.com/mysql/mysql-server/tree/mysql-cluster-8.0.26
-
-https://dev.mysql.com/blog-archive/mysql-8-0-optimizing-small-partial-update-of-lob-in-innodb/
-
-https://dev.mysql.com/blog-archive/externally-stored-fields-in-innodb/
-
-https://dev.mysql.com/blog-archive/mysql-8-0-new-storage-format-for-compressed-blobs/
-
-https://dev.mysql.com/blog-archive/mysql-8-0-innodb-introduces-lob-index-for-faster-updates/
-
-https://dev.mysql.com/worklog/task/?id=8960
-
-https://dev.mysql.com/worklog/task/?id=11328
-
-https://developer.aliyun.com/article/598070
+[https://github.com/mysql/mysql-server/tree/mysql-cluster-8.0.26](https://github.com/mysql/mysql-server/tree/mysql-cluster-8.0.26)
+[https://dev.mysql.com/blog-archive/mysql-8-0-optimizing-small-partial-update-of-lob-in-innodb/](https://dev.mysql.com/blog-archive/mysql-8-0-optimizing-small-partial-update-of-lob-in-innodb/)
+[https://dev.mysql.com/blog-archive/externally-stored-fields-in-innodb/](https://dev.mysql.com/blog-archive/externally-stored-fields-in-innodb/)
+[https://dev.mysql.com/blog-archive/mysql-8-0-new-storage-format-for-compressed-blobs/](https://dev.mysql.com/blog-archive/mysql-8-0-new-storage-format-for-compressed-blobs/)
+[https://dev.mysql.com/blog-archive/mysql-8-0-innodb-introduces-lob-index-for-faster-updates/](https://dev.mysql.com/blog-archive/mysql-8-0-innodb-introduces-lob-index-for-faster-updates/)
+[https://dev.mysql.com/worklog/task/?id=8960](https://dev.mysql.com/worklog/task/?id=8960)
+[https://dev.mysql.com/worklog/task/?id=11328](https://dev.mysql.com/worklog/task/?id=11328)
+[https://developer.aliyun.com/article/598070](https://developer.aliyun.com/article/598070)
 
