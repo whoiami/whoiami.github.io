@@ -41,8 +41,8 @@ FIL_PAGE_DATA = 38;
 OFFSET_VERSION = FIL_PAGE_DATA; 1byte（没什么用）
 OFFSET_FLAGS = FIL_PAGE_DATA + 1; (mark can be partially updated)
 OFFSET_LOB_VERSION = OFFSET_FLAGS + 1; 4bytes
-OFFSET_LAST_TRX_ID = OFFSET_LOB_VERSION + 4; 6bytes (最后一次修改这个page 的trx id)
-OFFSET_LAST_UNDO_NO = OFFSET_LAST_TRX_ID + 6; 4bytes(最后一次修改这个page 的trx no)
+OFFSET_LAST_TRX_ID = OFFSET_LOB_VERSION + 4; 6bytes(最后一次修改这个page 的trx id)
+OFFSET_LAST_UNDO_NO = OFFSET_LAST_TRX_ID + 6;4bytes(最后一次修改这个page 的trx no)
 OFFSET_DATA_LEN = OFFSET_LAST_UNDO_NO + 4; 4bytes
 OFFSET_TRX_ID = OFFSET_DATA_LEN + 4; 6bytes （初始化first page 的时候用的trx id）
 
@@ -61,13 +61,14 @@ OFFSET_INDEX_FREE_NODES =  OFFSET_INDEX_LIST + FLST_BASE_NODE_SIZE(4+ 2*6);
 6Bytres	FLST_LAST (4 + FIL_ADDR_SIZE) 
 
 LOB_PAGE_DATA = OFFSET_INDEX_FREE_NODES + FLST_BASE_NODE_SIZE(4+ 2*6); 
-10 index entries(by default), each index entry is of size 60 bytes. (10* 60 = 600bytes)
+10 index entries(by default), each index entry is of size 60 bytes.
+(10* 60 = 600bytes)
 index entry1
 index entry2
   ...
 index entry10
 
-data_begin()= frame() + LOB_PAGE_DATA +  node_count() * index_entry_t::SIZE (10 * 60);
+data_begin()=frame()+LOB_PAGE_DATA+node_count()*index_entry_t::SIZE (10*60);
 
 LOB_PAGE_TRAILER_LEN = FIL_PAGE_DATA_END; 
 ```
