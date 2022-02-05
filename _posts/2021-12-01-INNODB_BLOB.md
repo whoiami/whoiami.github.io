@@ -27,7 +27,7 @@ Innodb 使用的是B-tree 的形式来存储数据，这就意味着如果一个
 <br>
 
 
-Blob 物理数据类型在内核中定义了三种page 类型，分别是first page ，index page 和data page，同时其在cluster key 当中存储的并不是真正的数据，只是起自己定义的一个reference 。下边是各个数据类型的详细解释。
+Blob 物理数据类型在内核中定义了三种page 类型，分别是first page ，index page 和data page，同时其在cluster key 当中存储的并不是真正的数据，只是自己定义的一个reference 。下边是各个数据类型的详细解释。
 
 #### 1，First page
 
