@@ -466,7 +466,7 @@ undo record 当中存放着old column 的数据便于回滚跟mvcc 等操作，�
 
 <field no, field len, value> 组成。非外部存储流程，update 类型的undo record 需要存储old column 的个数，然后存储各个列的old field_no，field_len, value。
 
-对于外部存储流程field_no字段没有变化, 在field_len 和value字段进行了重新设计，写入undo rec的时候在field_len写入UNIV_EXTERN_STORAGE_FIELD，之后再写入真正的长度 。读取的时候判断字段长度如果是UNIV_EXTERN_STORAGE_FIELD 那么其真正的len 其后面一个字段，并且接下来的value是blob格式是需要按下面格式解析。
+对于外部存储流程field_no字段没有变化, 在field_len 和value字段进行了重新设计，写入undo rec的时候在field_len写入UNIV_EXTERN_STORAGE_FIELD，之后再写入真正的长度 。读取的时候判断字段长度如果是UNIV_EXTERN_STORAGE_FIELD 那么其真正的len 在其后面一个字段，并且接下来的value是blob格式是需要按下面格式解析。
 
 ![](/public/images/2021-12-01/lob_undo_record.png)
 
