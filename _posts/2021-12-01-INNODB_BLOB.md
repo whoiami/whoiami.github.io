@@ -255,10 +255,11 @@ Insert 了一个大概14个data page 大小的blob，它的first page 是page no
 2，如果数据还没有写完，不断的从first page 上面分配index entry，并且从fsp 上分配新的data page，将index entry 指向data page。从buffer 中拷贝到data page 里面。first page 上面预留了10个index entry，用尽了之后，会alloc 新的index page 。
 
 ```c++
-dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
-																				const upd_t *upd, ulint *offsets, 
-																				const big_rec_t *big_rec_vec,
-																				mtr_t *btr_mtr, opcode op) {
+dberr_t btr_store_big_rec_extern_fields(
+  trx_t *trx, btr_pcur_t *pcur,
+  const upd_t *upd, ulint *offsets, 
+  const big_rec_t *big_rec_vec,
+  mtr_t *btr_mtr, opcode op) {
   // upd 存放着SQL层面解析的数据，如果是json格式还存放partical update 需要更新blob 的
   // offset 和len 以及数据 big_rec_vec 存放着需要存放insert 的数据
   // pcur 当中存放了primary index record的内容，里面偏移一点量之后可以解析出来对应的这
@@ -496,7 +497,7 @@ trx_undo_page_report_modify_ext_func(
                                      page_size, *field, is_sdi, len);
 
     ptr += mach_write_compressed(ptr, *len + spatial_len);
-}
+  }
 }
 ```
 
