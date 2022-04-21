@@ -91,17 +91,17 @@ page_end - 200 的位置的字段，初始化成0xff 对应读到page no 应该�
 ```c++
 trx_sys_init_at_db_start
 |-> trx_rsegs_parallel_init
-|		| -> trx_rsegs_init_start 
-|		|		|-> purge_sys->rsegs_queue
-|		|-> trx_rseg_init_thread (used multiple threads)
-|				|-> trx_rseg_physical_initialize
+|   |-> trx_rsegs_init_start 
+|   |   |-> purge_sys->rsegs_queue
+|   |-> trx_rseg_init_thread (used multiple threads)
+|       |-> trx_rseg_physical_initialize
 |-> trx_rsegs_init (created mem rsegs in undo_space) // 没有真正初始化，真正初始化在
 trx_rseg_adjust_rollback_segments 里面做
   
 trx_rseg_adjust_rollback_segments(); 
 |-> trx_rseg_add_rollback_segments();
-		|-> trx_rseg_create
-		|-> trx_rseg_mem_create
+    |-> trx_rseg_create
+    |-> trx_rseg_mem_create
 
 
 /* 初始化一个rseg header page， 内存存放于undo_space->rsegs() */ 
@@ -139,7 +139,7 @@ Undo Segment  没有与预创建，在事务开启的时候，如果从Rollback 
 static void trx_start_low(trx_t *trx, bool read_write);
 |-> trx_assign_rseg_durable(trx)  /* Assign a durable rollback segment to a
                                      transaction */
-	|-> get_next_redo_rseg_from_undo_spaces()  /* get trx_rseg_t */
+    |-> get_next_redo_rseg_from_undo_spaces()  /* get trx_rseg_t */
 
 
 trx_undo_reuse_cached 
@@ -154,10 +154,10 @@ trx_undo_reuse_cached
     cached undo log reused. */
 trx_undo_assign_undo
 |-> trx_undo_create
-		|->trx_undo_seg_create /*创建 undo segment header 和
+    |->trx_undo_seg_create /*创建 undo segment header 和
                              undo page header */
-		|->trx_undo_header_create /*创建 undo log header */
-		|->trx_undo_mem_create /* 创建undo segment 内存结构 */
+    |->trx_undo_header_create /*创建 undo log header */
+    |->trx_undo_mem_create /* 创建undo segment 内存结构 */
 
 ```
 
