@@ -1,4 +1,4 @@
- ---
+---
 layout: post
 title: Innodb Undo Physical Format
 ---
@@ -79,8 +79,8 @@ srv_undo_tablespaces_construct
 /* 初始化 rseg array的page*/
 trx_rseg_array_create
 |-> fseg_create 返回这个space 的page 3用来存放rseg array
-Rollback segment array 各个字段初始化。初始化从 RSEG_ARRAY_SIZE_OFFSET 到page_end - 200 的位置
-的字段，初始化成0xff 对应读到page no 应该是FIL_NULL。
+Rollback segment array 各个字段初始化。初始化从 RSEG_ARRAY_SIZE_OFFSET 到
+page_end - 200 的位置的字段，初始化成0xff 对应读到page no 应该是FIL_NULL。
 ```
 
 
@@ -95,7 +95,8 @@ trx_sys_init_at_db_start
 |		|		|-> purge_sys->rsegs_queue
 |		|-> trx_rseg_init_thread (used multiple threads)
 |				|-> trx_rseg_physical_initialize
-|-> trx_rsegs_init (created mem rsegs in undo_space) // 没有真正初始化，真正初始化在trx_rseg_adjust_rollback_segments 里面做
+|-> trx_rsegs_init (created mem rsegs in undo_space) // 没有真正初始化，真正初始化在
+trx_rseg_adjust_rollback_segments 里面做
   
 trx_rseg_adjust_rollback_segments(); 
 |-> trx_rseg_add_rollback_segments();
@@ -136,21 +137,25 @@ Undo Segment  没有与预创建，在事务开启的时候，如果从Rollback 
 
 ```c++
 static void trx_start_low(trx_t *trx, bool read_write);
-|-> trx_assign_rseg_durable(trx)  /* Assign a durable rollback segment to a transaction */
+|-> trx_assign_rseg_durable(trx)  /* Assign a durable rollback segment to a
+                                     transaction */
 	|-> get_next_redo_rseg_from_undo_spaces()  /* get trx_rseg_t */
 
 
 trx_undo_reuse_cached 
-/* get trx_undo_t *undo from  rseg->insert_undo_cached or rseg->update_undo_cached */
+/* get trx_undo_t *undo from  rseg->insert_undo_cached or
+   rseg->update_undo_cached */
 ```
 
 创建Undo Segement 流程
 
 ```c++
-/*  Assigns an undo log for a transaction. A new undo log is created or a cached undo log reused. */
+/*  Assigns an undo log for a transaction. A new undo log is created or a
+    cached undo log reused. */
 trx_undo_assign_undo
 |-> trx_undo_create
-		|->trx_undo_seg_create /*创建 undo segment header 和 undo page header */
+		|->trx_undo_seg_create /*创建 undo segment header 和
+                             undo page header */
 		|->trx_undo_header_create /*创建 undo log header */
 		|->trx_undo_mem_create /* 创建undo segment 内存结构 */
 
