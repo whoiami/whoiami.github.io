@@ -72,7 +72,7 @@ Undo segment 的申请分为两部分， Rollback segment 的申请在事务开�
 trx_start_low() {
   /* read only trx will not  assign rseg */
   |-> trx_assign_rseg_durable(trx); // 分配到一个rseg到 m_redo 里面，这时候
-                                       insert_undo 和update_undo 还没有分配
+                                   //  insert_undo 和update_undo 还没有分配
 }
 trx_assign_rseg_durable
   |->get_next_redo_rseg_from_undo_spaces
