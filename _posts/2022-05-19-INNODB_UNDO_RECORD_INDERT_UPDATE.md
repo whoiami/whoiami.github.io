@@ -119,7 +119,11 @@ trx_undo_set_state_at_finish() {
 btr_cur_optimistic_insert /* 先写入undo 再写入数据 */
   |-> btr_cur_ins_lock_and_undo
   |-> page_cur_tuple_insert
-  
+
+btr_cur_optimistic_update /* 先写入undo 再写入数据 */
+  |->btr_cur_upd_lock_and_undo
+  |->btr_cur_insert_if_possible
+
 btr_cur_ins_lock_and_undo
   |->trx_undo_report_row_operation
 
