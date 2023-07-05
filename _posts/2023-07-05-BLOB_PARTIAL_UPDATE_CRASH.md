@@ -3,15 +3,12 @@ layout: post
 title: Blob Partial Update Crash
 ---
 
-<img src="/public/images/2023-07-05/diablo.jpeg"  alt="图片名称" align=center />
+<img src="/public/images/2023-07-05/diablo.jpg"  alt="图片名称" align=center />
 
-
-<br>
 
 
 ### Long Story Short
 
-<br>
 Blob 在做partial update 并且符合small change 记录到undo record ，之后如果读请求走mvcc 读到这个undo record 的时候有概率造成crash。
 
 
