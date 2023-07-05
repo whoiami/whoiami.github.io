@@ -110,8 +110,9 @@ update->get_binary_diff_by_field_no()->get_binary_diffs 里面
 返回 m_partial_update_info->m_binary_diff_vectors
 
 
+<br>
 
-所以这里需要看一下Value::remove_in_shadow 的逻辑。这个函数主要计算两部分binary diff，一个是Json 的number of elements部分的binary diff，另一个是json meta 部分的binary diff。具体的Json 格式格式解析可以参考https://developer.aliyun.com/article/598070，这里举例说明remove_in_shadow 是如何计算出长度为0 的binary diff 的。
+所以这里需要看一下Value::remove_in_shadow 的逻辑。这个函数主要计算两部分binary diff，一个是Json 的number of elements部分的binary diff，另一个是json meta 部分的binary diff。具体的Json 格式格式解析可以参考[https://developer.aliyun.com/article/598070](https://developer.aliyun.com/article/598070)，这里举例说明remove_in_shadow 是如何计算出长度为0 的binary diff 的。
 
 
 
@@ -152,7 +153,7 @@ UPDATE t SET b = JSON_REMOVE(b, '$[1]') where a = 1;
 ```
          0x02 - type: small JSON array
  CHANGED 0x01 - number of elements (low byte)
- CHANGED 0x00 - number of elements (high byte) // 高位虽然没有变但是也算是binary diff
+ CHANGED 0x00 - number of elements (high byte) // 高位虽然没有变
          0x12 - number of bytes (low byte)
          0x00 - number of bytes (high byte)
          0x0C - type of element 0 (string)
@@ -207,7 +208,7 @@ const byte *undo_data_t::copy_old_data(const byte *undo_ptr, ulint len) {
 
 <br>
 
-这里给官方提交了[bug report](https://bugs.mysql.com/bug.php?id=111647) 自认为事情描述清楚了，但是官方认为“can‘t repeat crash” 认为没有问题。
+这里给官方提交了[BUG REPORT](https://bugs.mysql.com/bug.php?id=111647) ，但是官方认为“can‘t repeat crash” 认为没有问题。
 
 
 <br>
@@ -221,7 +222,7 @@ trx_undo_read_blob_update
   =>ut::new_arr_withkey<byte>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{m_length}); 
     =>Alloc_pfs::alloc(std::size_t size,pfs_metadata::pfs_memory_key_t key);
   
-static inline void *alloc(std::size_t size,pfs_metadata::pfs_memory_key_t key) {
+static inline void *alloc(std::size_t size,pfs_metadata::pfs_memory_key_t key){
   const auto total_len = size + Alloc_pfs::metadata_len;
   auto mem = Alloc_fn::alloc<Zero_initialized>(total_len);
   return static_cast<uint8_t *>(mem) + Alloc_pfs::metadata_len;
@@ -253,6 +254,7 @@ pointer allocate(size_type n_elements, ...) {
 
 
 
+<br>
 <br>
 
 ### Reported bug
