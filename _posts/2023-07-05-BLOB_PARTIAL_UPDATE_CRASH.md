@@ -3,7 +3,7 @@ layout: post
 title: Blob Partial Update Crash
 ---
 
-<img src="/public/images/2022-05-19/crown_trick.jpeg"  alt="图片名称" align=center />
+<img src="/public/images/2023-07-05/diablo.jpeg"  alt="图片名称" align=center />
 
 
 <br>
