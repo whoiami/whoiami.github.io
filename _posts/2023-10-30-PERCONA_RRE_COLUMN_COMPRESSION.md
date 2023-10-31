@@ -112,7 +112,9 @@ static constexpr uint zip_column_compressed = 10;
 ### Row_compress_column && row_decompress_column
 
 压缩跟解压缩主要逻辑位于row_compress_column跟 row_decompress_column两个函数当中。
+
 row_compress_column逻辑相对简单，压缩接口调用zlib 的 deflateSetDictionary，如果成功就写入相应的column header，如果不成功也要占用2bytes 写入相应的column header，原因是解压的时候需要判断这个column 是否被压缩，需要读取column header 的zip_column_compressed 字段来做判断。
+
 row_decompress_column  逻辑先解析column header，判断是否压缩。如果没有压缩，返回不带column header 的数据就可以。如果是压缩数据，就要调用inflateSetDictionary 解压并返回解压之后的数据。这里用column header 里的未压缩之前的数据长度跟这里解压之后的数据长度进行了一个校验。
 
 ```c++
