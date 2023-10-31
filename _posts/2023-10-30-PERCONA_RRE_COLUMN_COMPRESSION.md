@@ -12,11 +12,11 @@ title: Percona Per-column Compression Code Analysis
 
 列压缩是针对某一列非常长的一种压缩策略，通常可压缩列类型为varchar，BLOB等类型。其最早由[印风](https://developer.aliyun.com/article/64891) 在AliSQL 实现并且提供给了Percona社区。Percona 在其基础上进行了代码重构，结合Zlib 提供的字典压缩特性，让列压缩提供以用户自建字典的方式进行压缩。Percona官方叫做Per-column Compression。
 
+<br>
 Percona引入了两个view，是位于`INFORMATION_SCHEM`下面的 `COMPRESSION_DICTIONARY` 跟`COMPRESSION_DICTIONARY_TABLES`。
 
 `COMPRESSION_DICTIONARY`用于存储自建字典的具体信息，包括name, version 和具体dictionary string。
 
-<br>
 [INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES](https://docs.percona.com/percona-server/8.0/compressed-columns.html#information_schemacompression_dictionary_tables)
 
 | Column Name                        | Description                     |
@@ -27,6 +27,7 @@ Percona引入了两个view，是位于`INFORMATION_SCHEM`下面的 `COMPRESSION_
 
 
 
+<br>
 `COMPRESSION_DICTIONARY_TABLES`用于存储哪些列关联到这个字典的信息。
 
 [INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES](https://docs.percona.com/percona-server/8.0/compressed-columns.html#information_schemacompression_dictionary_tables)
