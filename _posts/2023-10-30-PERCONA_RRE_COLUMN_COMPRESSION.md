@@ -66,8 +66,11 @@ mysql> CREATE TABLE t1(
 ### Code Analysis
 
 列压缩在Percona上经过5.6-8.0的迭代主要的commit 如下，这里只以8.0版本做代码分析。
+
 [Implemented "Column Compression with optional Predefined Dictionary"](https://github.com/percona/percona-server/commit/35d5d3faf00db7e32f48dcb39f776e43b83f1cb2)
+
 [Compressed columns functionality merged from 5.6 to 5.7](https://github.com/percona/percona-server/commit/d142eb0ffc7301f638060181748a9ff1b9910761)
+
 [Re-implement compression dictionaries in 8.0](https://github.com/percona/percona-server/commit/14e2a96c6954433970ce15b613dbbe85fb7239f0)
 
 
@@ -143,7 +146,9 @@ const byte *row_decompress_column(
 字典信息是如何传入row_compress_column 函数里的呢？
 
 mysql -h127.0.0.1 -uroot -P7788 -A （使用-A 参数use sbtest 的时候不会open table）
+
 use sbtest;
+
 INSERT INTO t1 VALUES (1, REPEAT('a', 200));
 
 ```c++
@@ -198,6 +203,7 @@ sql/dd/info_schema/metadata.cc
 ### Create Dict
 
 SET @dictionary_data = 'one' 'two' 'three' 'four';
+
 CREATE COMPRESSION_DICTIONARY numbers (@dictionary_data);
 
 ```
@@ -229,6 +235,7 @@ rea_create_base_table
 ### Insert & Select From Compressed Column
 
 CREATE TABLE t1 (id INT PRIMARY KEY, b1 varchar(200) COLUMN_FORMAT COMPRESSED);
+
 INSERT INTO t1 VALUES (1, REPEAT('a', 200));
 
 ```
@@ -276,9 +283,10 @@ select * from t1;
 ### Alter Column To Compressed Column (Copy DDL)
 
 CREATE TABLE t1 (id INT PRIMARY KEY, b1 varchar(200) COLUMN_FORMAT COMPRESSED, b2 varchar(200));
-INSERT INTO t1 VALUES (1, REPEAT('a', 200), REPEAT('a', 200));
-ALTER TABLE t1 MODIFY COLUMN b2 varchar(200) COLUMN_FORMAT COMPRESSED;
 
+INSERT INTO t1 VALUES (1, REPEAT('a', 200), REPEAT('a', 200));
+
+ALTER TABLE t1 MODIFY COLUMN b2 varchar(200) COLUMN_FORMAT COMPRESSED;
 这里走Copy ddl 先从原table 里面读出原有的record，再把需要修改的列压缩，之后写入一个新的table当中。这里原table有一部分列已经是压缩的了，所以读原table record的逻辑也会走到row_decompress_column。
 完整的copy 逻辑在 copy_data_between_tables 函数内部。
 
