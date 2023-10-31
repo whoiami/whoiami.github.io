@@ -4,7 +4,9 @@ title: Percona Per-column Compression Code Analysis
 ---
 
 
+<img src="/public/images/2023-07-05/diablo.jpg"  alt="图片名称" align=center />
 
+<br>
 
 ### 简介
 
@@ -63,26 +65,18 @@ mysql> CREATE TABLE t1(
 <br>
 ### Code Analysis
 
-<br>
 列压缩在Percona上经过5.6-8.0的迭代主要的commit 如下，这里只以8.0版本做代码分析。
 
-Implemented "Column Compression with optional Predefined Dictionary"
+[Implemented "Column Compression with optional Predefined Dictionary"](https://github.com/percona/percona-server/commit/35d5d3faf00db7e32f48dcb39f776e43b83f1cb2)
 
-https://github.com/percona/percona-server/commit/35d5d3faf00db7e32f48dcb39f776e43b83f1cb2
+[Compressed columns functionality merged from 5.6 to 5.7](https://github.com/percona/percona-server/commit/d142eb0ffc7301f638060181748a9ff1b9910761)
 
-Compressed columns functionality merged from 5.6 to 5.7
-
-https://github.com/percona/percona-server/commit/d142eb0ffc7301f638060181748a9ff1b9910761
-
-Re-implement compression dictionaries in 8.0
-
-https://github.com/percona/percona-server/commit/14e2a96c6954433970ce15b613dbbe85fb7239f0
+[Re-implement compression dictionaries in 8.0](https://github.com/percona/percona-server/commit/14e2a96c6954433970ce15b613dbbe85fb7239f0)
 
 
 <br>
 
 #### Physical Format
-<br>
 
 Column最终的存储格式是
 
@@ -119,7 +113,6 @@ static constexpr uint zip_column_compressed = 10;
 <br>
 #### Row_compress_column && row_decompress_column
 
-<br>
 压缩跟解压缩主要逻辑位于row_compress_column跟 row_decompress_column两个函数当中。
 
 row_compress_column逻辑相对简单，压缩接口调用zlib 的 deflateSetDictionary，如果成功就写入相应的column header，如果不成功也要占用2bytes 写入相应的column header，原因是解压的时候需要判断这个column 是否被压缩，需要读取column header 的zip_column_compressed 字段来做判断。
@@ -156,7 +149,6 @@ const byte *row_decompress_column(
 
 #### 字典信息读取
 
-<br>
 字典信息是如何传入row_compress_column 函数里的呢？
 
 ```c++
@@ -182,15 +174,10 @@ INSERT INTO t1 VALUES (1, REPEAT('a', 200));
 
 <br>
 第一次 open talbe的时候，fill_column_from_dd (sql/dd_table_share.cc:)调用 compression_dict::get_name_for_id(zip_dict_id)
-
 （zip_dict_id 是create 时候column_options带的id）读mysql.compression_dictionary这个表，获取到了zip_dict_name和zip_dict_data 存到了TABLE_SHARE当中。
-
 之后通过TABLE_SHARE存到了m_prebuilt->mysql_template
-
 build_template_field(storage/innobase/handler/ha_innodb.cc) 
-
 ​	=> m_prebuilt->mysql_template = share->field->zip_dict_data 
-
 之后在row_mysql_convert_row_to_innobase(storage/innobase/row/row0mysql.cc)  中row_prebuilt_t为参数传到了row_compress_column
 
 
@@ -198,29 +185,30 @@ build_template_field(storage/innobase/handler/ha_innodb.cc)
 <br>
 #### New Added Table (Bootstrap and Invoke)
 
-<br>
 INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES 和INFORMATION_SCHEMA.COMPRESSION_DICTIONARY 两张表是两个view，数据实际来源自mysql.compression_dictionary 和mysql.compression_dictionary_cols 两张表中。
 
-```
-sql/sql_zip_dict.cc // mysql.compression_dictionary 和mysql.compression_dictionary_cols 调用接口以及两张表的初始化(bootstrap)
+<br>
+sql/sql_zip_dict.cc // mysql.compression_dictionary和mysql.compression_dictionary_cols 调用接口以及两张表的初始化(bootstrap)
+
 sql/dd/impl/system_views/compression_dictionary.cc // 定义INFORMATION_SCHEMA.COMPRESSION_DICTIONARY
+
 sql/dd/impl/system_views/compression_dictionary_tables.cc // 定义 INFORMATION_SCHEMA.COMPRESSION_DICTIONARY_TABLES
+
 sql/dd/info_schema/metadata.cc // create_system_views 创建information_schema 的view
-```
 
 
 
 <br>
 #### Create Dict
 
-<br>
 ```
 SET @dictionary_data = 'one' 'two' 'three' 'four';
 CREATE COMPRESSION_DICTIONARY numbers (@dictionary_data);
 
 sql/sql_parse.cc // SQLCOM_CREATE_COMPRESSION_DICTIONARY 
 create_zip_dict 
-	=> open_dictionary_table_write(open mysql.compression_dictionary and write table columns)
+ => open_dictionary_table_write
+    (open mysql.compression_dictionary and write table columns)
 ```
 
 
@@ -228,14 +216,13 @@ create_zip_dict
 <br>
 #### Combine Dict and Column
 
-<br>
 ```
 create table user_data (a int(10), b int(10), c varchar(100) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers);
 
 sql/sql_table.cc 
 rea_create_base_table
-	=>compression_dict::cols_table_insert
-			=>open_dictionary_cols_table_write(open mysql.compression_dictionary_cols and write table columns)
+ =>compression_dict::cols_table_insert
+  =>open_dictionary_cols_table_write(open mysql.compression_dictionary_cols and write table columns)
 ```
 
 
@@ -243,7 +230,6 @@ rea_create_base_table
 
 #### Insert & Select From Compressed Column
 
-<br>
 ```
 CREATE TABLE t1 (id INT PRIMARY KEY, b1 varchar(200) COLUMN_FORMAT COMPRESSED);
 INSERT INTO t1 VALUES (1, REPEAT('a', 200));
@@ -290,7 +276,6 @@ select * from t1;
 
 #### Alter Column To Compressed Column (Copy DDL)
 
-<br>
 ```
 CREATE TABLE t1 (id INT PRIMARY KEY, b1 varchar(200) COLUMN_FORMAT COMPRESSED, b2 varchar(200));
 INSERT INTO t1 VALUES (1, REPEAT('a', 200), REPEAT('a', 200));
@@ -335,18 +320,16 @@ ALTER TABLE t1 MODIFY COLUMN b2 varchar(200) COLUMN_FORMAT COMPRESSED;
 
 ### 社区Bug
 
-<br>
-测试过程中发现一个导致OOM的bug，已经verify。具体见https://jira.percona.com/browse/PS-8879
+测试过程中发现一个导致OOM的bug，已经verify。具体见[https://jira.percona.com/browse/PS-8879](https://jira.percona.com/browse/PS-8879)
 
 
 
 <br>
 ### Reference
 
-<br>
-https://developer.aliyun.com/article/64891
+[https://developer.aliyun.com/article/64891](https://developer.aliyun.com/article/64891)
 
-https://docs.percona.com/percona-server/8.0/compressed-columns.html#
+[https://docs.percona.com/percona-server/8.0/compressed-columns.html#](https://docs.percona.com/percona-server/8.0/compressed-columns.html#)
 
-https://github.com/percona/percona-server
+[https://github.com/percona/percona-server](https://github.com/percona/percona-server)
 
