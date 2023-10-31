@@ -85,7 +85,9 @@ ZIP_COLUMN_HEADER_LENGTH + Len + Compressed_data
 ```
 
 ZIP_COLUMN_HEADER_LENGTH: 压缩之后 Column Header 部分占用（2）bytes
+
 Len:  压缩之前的长度，其占用的字节数是个变长的数值1-4bytes，具体这个column占用多长记录在ZIP_COLUMN_HEADER_LENGTH的zip_column_data_length里面。主要用户后续解压缩之后长度的校验。
+
 Compressed_data: 压缩之后的数据
 
 
@@ -218,7 +220,7 @@ create_zip_dict
 <br>
 ### Combine Dict and Column
 
-create table user_data (a int(10), b int(10), c varchar(100) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers);
+CREATE TABLE user_data (a int(10), b int(10), c varchar(100) COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers);
 
 ```
 
@@ -287,6 +289,7 @@ CREATE TABLE t1 (id INT PRIMARY KEY, b1 varchar(200) COLUMN_FORMAT COMPRESSED, b
 INSERT INTO t1 VALUES (1, REPEAT('a', 200), REPEAT('a', 200));
 
 ALTER TABLE t1 MODIFY COLUMN b2 varchar(200) COLUMN_FORMAT COMPRESSED;
+
 这里走Copy ddl 先从原table 里面读出原有的record，再把需要修改的列压缩，之后写入一个新的table当中。这里原table有一部分列已经是压缩的了，所以读原table record的逻辑也会走到row_decompress_column。
 完整的copy 逻辑在 copy_data_between_tables 函数内部。
 
