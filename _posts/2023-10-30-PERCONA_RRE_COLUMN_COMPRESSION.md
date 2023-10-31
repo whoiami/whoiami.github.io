@@ -4,7 +4,7 @@ title: Percona Per-column Compression Code Analysis
 ---
 
 
-<img src="/public/images/2023-07-05/diablo.jpg"  alt="图片名称" align=center />
+<img src="/public/images/2023-10-30/vampire_survivors.jpg"  alt="图片名称" align=center />
 
 <br>
 
