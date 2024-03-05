@@ -54,11 +54,18 @@ struct buf_block_t {
 
 class buf_page_t {
   page_id_t id;
-  ib_uint32_t buf_fix_count;// 代表是否有流程正在持有这个page。读上来的时候初始化成0。buf_page_get_gen 会inc 这个值，mtr commit 的时候会dec 这个值。为0 代表读上来之后没有流程正在使用这个page。
-  buf_io_fix io_fix; //代表这个page 是否在被进行io 动作（读或写）。这个page 准备读或者准备刷的时候，这个值会置成BUF_IO_READ或者BUF_IO_WRITE 状态。io 操作结束的时候会设置成BUF_IO_NONE。BUF_IO_NONE 代表这个page 没有进行任何io 操作。
+  ib_uint32_t buf_fix_count;// 代表是否有流程正在持有这个page。读上来的时候初始化成0。
+                            // buf_page_get_gen 会inc 这个值，mtr commit 的时候会dec
+                            // 这个值。为0 代表读上来之后没有流程正在使用这个page。
+  buf_io_fix io_fix; // 代表这个page 是否在被进行io 动作（读或写）。这个page 准备读或
+                     // 者准备刷的时候，这个值会置成BUF_IO_READ或者BUF_IO_WRITE 状态。
+                     // io 操作结束的时候会设置成BUF_IO_NONE。BUF_IO_NONE 代表这个page 
+                     // 没有进行任何io 操作。
   // 这里的buf_fix_count 和 io_fix 这两个状态主要的作用是减少锁判断次数。
   lsn_t newest_modification;
-  lsn_t oldest_modification; // 代表这个page被读上来之后最老的一次修改。读上来的时候初始化成0，mtr commit 时候，如果是第一次修改这个page就候赋值。为0 代表读上来之后没有人修改。
+  lsn_t oldest_modification; // 代表这个page被读上来之后最老的一次修改。读上来的时候初
+                             // 始化成0，mtr commit 时候，如果是第一次修改这个page就候
+                             // 赋值。为0 代表读上来之后没有人修改。
   ...
 }
 ```
@@ -70,7 +77,7 @@ class buf_page_t {
 
 ### LRU实现
 
-![](https://dev.mysql.com/doc/refman/8.0/en/images/innodb-buffer-pool-list.png)
+<img src="https://dev.mysql.com/doc/refman/8.0/en/images/innodb-buffer-pool-list.png"  alt="图片名称" align=center />
 
 
 
@@ -85,8 +92,10 @@ BufferPool 的LRU list 被分为两个部分，内核当中叫young list 和 old
 控制进入young list 的逻辑是**buf_page_make_young_if_needed**：
 
 page 进入young list 内核当中称作make young。
-1,  访问的page在old list里面。并且上次访问的时间已经过了大于**buf_LRU_old_threshold_ms（1000ms）**  (针对的场景是一个全表扫描把buffer pool全都污染了。)
-2, 访问的page 在young list 里面。并且这个page 进入young 的时候到现在，距离LRU young head至少超过yong list 的1/4了。这时候认为这个这次问的page 有被逐出的风险，所以需要young 一下。LRU 的目的还是维护一堆频繁访问的page，只要没有evicted 风险都可以尽量不make_young.（处理的场景是特别热的page 不停的读，可能会导致不停的make_young，锁开销会影响LRU性能, 理论上的LRU每一次读page都应该make_young 这里只是为了性能考虑的工程优化。）
+
+  1,  访问的page在old list里面。并且上次访问的时间已经过了大于**buf_LRU_old_threshold_ms（1000ms）**  (针对的场景是一个全表扫描把buffer pool全都污染了。)
+
+  2, 访问的page 在young list 里面。并且这个page 进入young 的时候到现在，距离LRU young head至少超过yong list 的1/4了。这时候认为这个这次问的page 有被逐出的风险，所以需要young 一下。LRU 的目的还是维护一堆频繁访问的page，只要没有evicted 风险都可以尽量不make_young.（处理的场景是特别热的page 不停的读，可能会导致不停的make_young，锁开销会影响LRU性能, 理论上的LRU每一次读page都应该make_young 这里只是为了性能考虑的工程优化。）
 
 
 
@@ -103,8 +112,8 @@ buf_chunk_t 初始化流程申请了一整块内存，之后在这个内存当�
 
 3MB buf_block_t  控制信息+128MB page 内容，每一个buf_block_t 当中的frame字段指向后面分配的128MB 物理page 位置。
 
-![image-20240227200408060](/Users/zhaominghuan/Library/Application Support/typora-user-images/image-20240227200408060.png)
 
+<img src="/public/images/2024-03-05/chunk_init.png"  alt="图片名称" align=center />
 
 <br>
 
@@ -168,12 +177,15 @@ buf_block_t* buf_page_get_gen() {
 具体流程，需要符合以下条件：
 
 1，检查这个extent 里面的一定数量（**srv_read_ahead_threshold** ）page的的访问时间是不是递增的或者是递减的。
+
 2，这个page是一个extent 的边缘的page id。即extent 的最小的那个page，或者最大的那个page。
+
 3，通过**fil_page_get_prev** 和**fil_page_get_next **拿到的这个page 在btree 上的上一个和下一个page。这个page 的前一个page 和后一个page 的page id 也是连续的。
 
 如果满足上面条件就调用调用buf_read_page_low把这个extent 里面的page 都预读上来。线性预读针对的还是全表扫描等类似的使用场景。
 
 
+<br>
 
 ### buf_LRU_get_free_block
 
@@ -208,7 +220,8 @@ scan LRU 看能不能取下来直接放到free list 的时候，判断page 是�
 buf_block_t *buf_LRU_get_free_block(buf_pool_t *buf_pool) {
   buf_LRU_get_free_only(buf_pool);
   buf_LRU_scan_and_free_block(buf_pool, scan_all);
-  buf_flush_single_page_from_LRU(buf_pool); // 单刷一个page，在buf_page_io_complete 里面摘LRU 放到free list
+  buf_flush_single_page_from_LRU(buf_pool); // 单刷一个page，在buf_page_io_complete
+                                            // 里面摘LRU 放到free list
 }
 
 ibool buf_flush_ready_for_replace(buf_page_t *bpage) {
@@ -245,7 +258,7 @@ synchronous flush 场景：
 
 ```c++
 innodb_io_capacity /* 系统io 次数能力 */
-innodb_io_capacity_max /* 系统io 次数的上限，innodb_io_capacity 修改不能超过这个上限。。*/
+innodb_io_capacity_max /* 系统io 次数的上限,innodb_io_capacity 修改不能超过这个上限*/
 innodb_max_dirty_pages_pct /*bp 里面允许的最大脏页百分比，超过就激烈刷脏 */
 innodb_max_dirty_pages_pct_lwm /* bp 脏页超过这个值就开始刷脏 */
 ```
@@ -284,7 +297,9 @@ pct_total = ut_max(pct_for_dirty, pct_for_lsn);
 
 ```c++
   lsn_age_factor = (age * 100) / limit_for_age;
-  return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *(lsn_age_factor * sqrt((double)lsn_age_factor))) /7.5));
+  return (static_cast<ulint>(
+        ((srv_max_io_capacity / srv_io_capacity) *
+         (lsn_age_factor * sqrt((double)lsn_age_factor))) /7.5));
 ```
 
 
