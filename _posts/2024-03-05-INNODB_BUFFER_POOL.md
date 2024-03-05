@@ -167,7 +167,7 @@ buf_block_t* buf_page_get_gen() {
 **buf_read_ahead_random** 随机预读，成功读盘读到page 之后，触发随机预读。具体流程：
 
 先确定预读范围 **BUF_READ_AHEAD_AREA()**，这里指的是在什么范围内进行预读，这里默认是一个extent（1M， 64个16k page）, 理论上也可以是其他的范围。
-之后，计算这个已经读到的page_id 所在的extent 有多少是在young list里面，并且还是比较热的数据（young list 前1/4 的位置），如果这个extent中有**BUF_READ_AHEAD_RANDOM_THRESHOLD (13)**以上是热数据，就说明接下来有可能这个extent 有可能有更多的page 被读上来，所以执行预读调用**buf_read_page_low **把这个extent 中剩余的page 都预读上来。 
+之后，计算这个已经读到的page_id 所在的extent 有多少是在young list里面，并且还是比较热的数据（young list 前1/4 的位置），如果这个extent中有**BUF_READ_AHEAD_RANDOM_THRESHOLD (13)**以上是热数据，就说明接下来有可能这个extent 有可能有更多的page 被读上来，所以执行预读调用**buf_read_page_low**把这个extent 中剩余的page 都预读上来。 
 
 
 
@@ -180,7 +180,7 @@ buf_block_t* buf_page_get_gen() {
 
 2，这个page是一个extent 的边缘的page id。即extent 的最小的那个page，或者最大的那个page。
 
-3，通过**fil_page_get_prev** 和**fil_page_get_next **拿到的这个page 在btree 上的上一个和下一个page。这个page 的前一个page 和后一个page 的page id 也是连续的。
+3，通过**fil_page_get_prev** 和**fil_page_get_next**拿到的这个page 在btree 上的上一个和下一个page。这个page 的前一个page 和后一个page 的page id 也是连续的。
 
 如果满足上面条件就调用调用buf_read_page_low把这个extent 里面的page 都预读上来。线性预读针对的还是全表扫描等类似的使用场景。
 
@@ -283,7 +283,7 @@ innodb_max_dirty_pages_pct_lwm /* bp 脏页超过这个值就开始刷脏 */
 n_pages = (PCT_IO(pct_total) + avg_page_rate + pages_for_lsn) / 3;
 ```
 
-**pct_total **代表的是基于当前实例状态下，需要flush 的page 个数。**avg_page_rate**和**pages_for_lsn** 是基于实例的历史平均数据，计算出的应该flush 下去的page 个数。 
+**pct_total**代表的是基于当前实例状态下，需要flush 的page 个数。**avg_page_rate**和**pages_for_lsn** 是基于实例的历史平均数据，计算出的应该flush 下去的page 个数。 
 
 1, **pct_total** 根据当前实例的状态，计算出当前脏页的百分比跟lsn 脏的百分比, 取两者的最大值。
 
@@ -303,7 +303,7 @@ pct_total = ut_max(pct_for_dirty, pct_for_lsn);
 ```
 
 
-通过观察**pct_for_lsn = f(lsn_age_factor) **通过简单的计算，可知他的斜率是大于1的。也就是说这里未刷脏lsn 增长一点，返回的需要刷脏的page 就会成倍的增长。说明这里还是想用更激进的刷脏策略，限制未刷脏lsn 的大小。
+通过观察**pct_for_lsn = f(lsn_age_factor)**通过简单的计算，可知他的斜率是大于1的。也就是说这里未刷脏lsn 增长一点，返回的需要刷脏的page 就会成倍的增长。说明这里还是想用更激进的刷脏策略，限制未刷脏lsn 的大小。
 
 2，**avg_page_rate** 计算几次batch flush 刷下去page 的平均个数。
 3，**pages_for_lsn** 先计算几次batch flush 推进的lsn 的平均长度, 再计算如果这次flush也推进这么多lsn，对应的page 是多少。如果预估这次flush 可能推进的lsn 是A。从flush list 里面捞出oldest_modification 小于这个lsn A 的page 个数，就是估算的pages_for_lsn。
