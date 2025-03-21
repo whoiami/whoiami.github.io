@@ -69,6 +69,7 @@ static trx_undo_rec_t* trx_purge_fetch_next_rec()
 
 
 
+<br>
 ### 哪些undo record 可以被pruge？
 
 innodb 当中的解释是这样的：
@@ -85,6 +86,7 @@ trx_undo_rec_t* trx_purge_fetch_next_rec() {
 
 purge 的时候需要取到所有的read view 当中的最老的一个view，比较history list 的trx no 跟这个view 的m_low_limit_no，如果historylist 拿到的trx no 小于m_low_limit_no，可以被purge。（ReadView::m_low_limit_no 这个值是MVCC::view_open 的时候调用ReadView::prepare 取trx_sys->serialisation_min_trx_no 赋值的。也就是view 生成的时候对应的当前serialisation list 里面最小的trx no。serialisation list 里面的值是正在commit 的一些事务，取这个list 的最小值可以保证这个trx no 之前的事务都已经提交结束。）因为已经commit 事务的undo 是记录这个事务之前一个版本的数据，undo record 的trx id 和内容是上一次修改的内容，如果最老的view 开启的时候都是在这个undo trx no 提交之后，那么这个最老的view 以及之后的所有view，应该看到这个版本之前更新的版本，都不需要看这个record 更老的版本了，那么这个undo record 对应的这个版本就可以purge 掉了。
 
+<br>
 例如：
 
 oldest view(purge view) ( [10, 25,27,28] high id=50, m_low_limit_no=40) 
@@ -100,6 +102,7 @@ purge操作删除了trx_id= 2 的 record 这个版本，最老的view 还是能�
 至此需要purge 的undo record 已经被被扫出来了。下一步就是purge worker thread 真正对这些undo record 进行清理。
 
 
+<br>
 
 ### 1.2， 执行具体的undo record purge（row_purge）
 
@@ -125,6 +128,7 @@ static bool row_purge_record() {
 }
 ```
 
+<br>
 
 
 TRX_UNDO_DEL_MARK_REC 类型 
@@ -156,11 +160,13 @@ ibool row_vers_old_has_index_entry() {
   // 对于undo purge del mark 的流程，以上两种情况这个二级索引不能被删除。
   
   // 2中查找之前的版本的时候调用 trx_undo_prev_version_build 这里调用trx_undo_get_undo_rec=>purge_sys->view.changes_visible.
-  // 发现purge view 能看到这个版本的record就结束向上构建历史版本，因为purge view 能看到这个版本说明其他的view 至少应该看见这个版本，所以这个版本之前的版本就一定没有人看了，之前的版本就应该是可以被purge 但是还没有purge 到的版本。
+  // 发现purge view 能看到这个版本的record就结束向上构建历史版本，因为purge view 能看到这个版本说明其他的view 至少应该看见这个版本
+  // 所以这个版本之前的版本就一定没有人看了，之前的版本就应该是可以被purge 但是还没有purge 到的版本。
 }
 
 ```
 
+<br>
 
 
 TRX_UNDO_UPD_EXIST_REC 类型
@@ -174,6 +180,7 @@ static void row_purge_upd_exist_or_extern() {
 }
 ```
 
+<br>
 
 
 TRX_UNDO_INSERT_REC 类型
@@ -181,6 +188,7 @@ TRX_UNDO_INSERT_REC 类型
 insert 类型由于没有需要处理的之前版本的数据， 是不需要undo purge 处理的。
 
 
+<br>
 
 TRX_UNDO_UPD_DEL_REC 类型
 
@@ -189,6 +197,7 @@ TRX_UNDO_UPD_DEL_REC 类型
 TRX_UNDO_UPD_DEL_REC 类型产生的场景是本身这个主键索引由于用户删除标记了delete mark，但是还没有来得及purge，这时候用户层面insert 了一条相同主键的record。这时候TRX_UNDO_UPD_DEL_REC 类型对应的主键操作是，把delete mark 消掉，如果修改了二级索引的字段，就把原来的二级索引删除（应该已经标记删除了），再插入一个新的二级索引。如果没有修改之前的二级索引，就把之前的二级索引的delete mark 消掉。所以本质上类似于insert 操作，没有产生任何额外需要undo purge 的老数据，所以TRX_UNDO_UPD_DEL_REC 是不需要purge 的。（老的二级索引还是由用户标记删除操作产生的TRX_UNDO_DEL_MARK_REC undo 删除掉。）
 
 
+<br>
 
 ###  2，Undo Tuncate（trx_purge_truncate）
 Undo Truncate 的主要触发逻辑是在trx_purge 中每一个purge batch处理完字后，按照一定的频率(srv_purge_rseg_truncate_frequency参数) 对于undo 进行truncate，主要调用函数 trx_purge_truncate。
@@ -208,7 +217,8 @@ void trx_purge_truncate() {
 }
 
 void trx_purge_truncate_rseg_history() {
-  // 按照trx no 从小到大的顺序扫描这个rollback segment 上面的history list 上面的事务，直到扫描到的trx no 大于purge view 的trx no（意味着所有已经purge 的事务都物理格式都要处理一下）
+  // 按照trx no 从小到大的顺序扫描这个rollback segment 上面的history list 上面的事务，直到扫描到的trx no 大于purge view 的trx no
+  // （意味着所有已经purge 的事务都物理格式都要处理一下）
   // undo segment 标记 TRX_UNDO_TO_PURGE, 并且这个trx 已经是这个undo segment 的最后一个trx 了。
   if ((mach_read_from_2(seg_hdr + TRX_UNDO_STATE) == TRX_UNDO_TO_PURGE) && (mach_read_from_2(log_hdr + TRX_UNDO_NEXT_LOG) == 0) {
     // free undo segment, free 这个undo segment 使用一些undo record 占用的page。
@@ -224,6 +234,7 @@ void trx_purge_truncate_rseg_history() {
 
 
 
+<br>
 
 
 ### 3， Reference:
