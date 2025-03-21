@@ -4,7 +4,7 @@ title: Innodb Undo Purge and Truncate
 ---
 
 
-<img src="/public/images/2024-03-05/undo_cover.png"  alt="图片名称" align=center />
+<img src="/public/images/2025-03-21/undo_cover.png"  alt="图片名称" align=center />
 
 <br>
 
