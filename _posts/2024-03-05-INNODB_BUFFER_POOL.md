@@ -6,7 +6,6 @@ title: Innodb Buffer Pool
 <img src="/public/images/2024-03-05/dota2.jpeg"  alt="图片名称" align=center />
 
 <br>
-
 ### 简介
 
 Buffer Pool 在Innodb 实例当中通常使用了绝大多数的内存，为实例的读写page 流程进行加速，是Innodb 内核中非常重要的一个组件。其本质是用内存换磁盘io 的过程，第一次读page 的时候将磁盘page数据拷贝到内存page当中，相同page 的反复修改，只需修改内存page ，而不是再次执行读盘操作后修改。当然，Buffer Pool 需要定期的Flush page 将内存的page 数据刷回到磁盘当中，保证数据的持久化。理论上，内存越大缓存的数据越多，实例的io 操作也就越少。无穷大的内存，就不需要io。实际上，无穷大的内存是不可能的。所以，innodb 的工程实现上需要平衡用有限的内存资源，缓存尽量多的常用page，最大限度的减少io。
