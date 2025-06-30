@@ -62,8 +62,6 @@ Storage 是分布式的， 存储层里面有对于同一个row 的不同版本�
 
 
 <br>
-<br>
-<br>
 ### 读请求路径：
 
 读请求不用判断冲突跟落盘，所以直接跨过Adjudicator 跟 Journal，请求直接打到Storage 上面。DSQL 每个事务有精确的Tstart ，基于EC2 有一个时钟服务（[precision time infrastructure](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html)），读sql 在storage 上面就可以根据Tstart 确定读取的版本，为了减少Query Processor 到Storage 的频繁网络请求， QP 到storage 的请求都是*logical* interface ， 请求row 而不是page。比如一些过滤条件直接传给存储。
@@ -76,11 +74,6 @@ Storage 是分布式的， 存储层里面有对于同一个row 的不同版本�
 
 
 <br>
-<br>
-<br>
-
-
-
 ### 写请求路径：
 
 写事务开启事务时间Tstart，这个事务的任何数据修改是先缓存到QP 当中， 猜测这也是单个事务有修改不过3000行的限制的由来。等到事务要Commit 的时候，QP 联系某一个 Adjudicator A ，A 把这个事务修改的row 发送到负责这些 row 的Adjudicators，如果没有人在Tstart 之后修改这个事务要修改的内容， A就去通知其他的 adjudicator 这个事务要在Tcommit 做commit。等其他adjudicator都收到这个通知，A 再将这个事务写到 Journal，这里就可以返回用户了。后台会异步把journal 应用到storage。
@@ -103,8 +96,6 @@ Storage 是分布式的， 存储层里面有对于同一个row 的不同版本�
 
 
 <br>
-<br>
-<br>
 
 ### Multi Region
 
@@ -118,15 +109,11 @@ Storage 是分布式的， 存储层里面有对于同一个row 的不同版本�
 
 
 <br>
-<br>
-<br>
 
 ### 测试&分析：
 
 环境：AWS EC2 美东美西延迟大概 50ms (往返延迟)。美东美西各一个DSQL 组成Multi Region DSQL。
 
-<br>
-<br>
 <br>
 
 
@@ -207,8 +194,6 @@ ERROR:  Unsupported isolation level: READ UNCOMMITTED
 
 
 <br>
-<br>
-<br>
 
 ### 总结：
 
@@ -226,8 +211,6 @@ https://docs.aws.amazon.com/zh_cn/aurora-dsql/latest/userguide/working-with-post
 总体来说DSQL ，尝试用OCC 的方式解决跨Region 多写的问题，提供了一个新的思路，最大的亮点在其架构上面的可扩展性， 对于OCC 的实现和考量还有待演进。
 
 
-<br>
-<br>
 <br>
 
 ### Reference:
