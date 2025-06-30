@@ -35,12 +35,12 @@ Transaction and session router：
 这部分DSQL 给每一个session 分配一个微型虚拟机（firecracker）， 内部运行Query Procesor，根据DSQL 作者 Marc Brooker 的说法， 每个session 创建的时候，firecracker 可以在个位数毫秒级别弹起来一个虚拟机， 专门处理这个session 的事务。
 
 <br>
-Query Processor 
+Query Processor:
 
 用的PostgreSQL 原生的部分， 主要负责sql 的解析等工作，其内部会缓存这个session 内未提交的事务的修改。本身是无状态的，水平扩展。 
 
 <br>
-Adjudicator 
+Adjudicator:
 
 DSQL 主要实现OCC 的部分。 主要负责事务级别的冲突检测。QP 在事务结束的时候告诉Adjudicator 要写那些keys/rows， 如果在这个事务的存活期间没有其他的事务对这些keys 修改，那就可以commit 到 Journal 当中。分片的范围可能跟范围内的key 多少分裂合并。并且每个分片有是有Leader/slave的， leader 的选出是Adjudicator负责这个分片的leader/slave自己选举产生的。最终记录在PG 的catalog table 表结构当中。 
 
@@ -61,7 +61,8 @@ Storage：
 Storage 是分布式的， 存储层里面有对于同一个row 的不同版本的数据，使用的是 snapshot isolation， 应该类似于PostgreSQL REPEATABLE READ，存在多个版本的数据的完整数据。
 
 
-
+<br>
+<br>
 <br>
 ### 读请求路径：
 
@@ -74,6 +75,8 @@ Storage 是分布式的， 存储层里面有对于同一个row 的不同版本�
 ![image-20250616141121710](/public/images/2024-06-30/image-20250616141121710.png)
 
 
+<br>
+<br>
 <br>
 
 
@@ -100,6 +103,8 @@ Storage 是分布式的， 存储层里面有对于同一个row 的不同版本�
 
 
 <br>
+<br>
+<br>
 
 ### Multi Region
 
@@ -113,11 +118,15 @@ Storage 是分布式的， 存储层里面有对于同一个row 的不同版本�
 
 
 <br>
+<br>
+<br>
 
 ### 测试&分析：
 
 环境：AWS EC2 美东美西延迟大概 50ms (往返延迟)。美东美西各一个DSQL 组成Multi Region DSQL。
 
+<br>
+<br>
 <br>
 
 
@@ -198,6 +207,8 @@ ERROR:  Unsupported isolation level: READ UNCOMMITTED
 
 
 <br>
+<br>
+<br>
 
 ### 总结：
 
@@ -215,6 +226,8 @@ https://docs.aws.amazon.com/zh_cn/aurora-dsql/latest/userguide/working-with-post
 总体来说DSQL ，尝试用OCC 的方式解决跨Region 多写的问题，提供了一个新的思路，最大的亮点在其架构上面的可扩展性， 对于OCC 的实现和考量还有待演进。
 
 
+<br>
+<br>
 <br>
 
 ### Reference:
